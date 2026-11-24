@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Grand Craft Auto</title>
+<link rel="icon" href="data:,">
+<style>
+  :root { --ink: #2a2146; --page: #f6e8d8; --core: #fdf4e6; --shadow: rgba(42, 26, 74, .42); }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #2a5d70; font-family: Georgia, 'Iowan Old Style', 'Times New Roman', serif; }
+  canvas { display: block; touch-action: none; cursor: pointer; }
+  .paper { background:
+      radial-gradient(120% 90% at 22% 12%, rgba(255, 252, 240, .9), rgba(255, 252, 240, 0) 60%),
+      repeating-linear-gradient(97deg, rgba(120, 90, 70, .035) 0 1px, rgba(255, 255, 255, 0) 1px 5px), var(--page);
+    color: var(--ink); border-radius: 3px; box-shadow: 0 1px 0 rgba(255, 250, 235, .9) inset, 0 -1px 0 rgba(90, 60, 50, .25) inset, 0 10px 22px -6px var(--shadow), 0 2px 3px rgba(74, 48, 68, .3); }
+  .hint { position: fixed; left: 50%; bottom: 14px; transform: translateX(-50%); font: italic 14px/1.3 Georgia, serif; color: #fff8ea; opacity: .9;
+    letter-spacing: .03em; pointer-events: none; text-shadow: 0 1px 3px #4a3040; transition: opacity 1.2s; white-space: nowrap; z-index: 3; }
+  .hint.gone { opacity: 0; }
+
+  #start { position: fixed; inset: 0; display: grid; place-items: center; z-index: 10; cursor: pointer; background: linear-gradient(180deg, #2a2146 0%, #7a4a8c 38%, #f08a6c 70%, #ffc27a 100%); transition: opacity .9s; }
+  #start .card { width: min(430px, 78vw); padding: 48px 34px 56px; text-align: center; transform-origin: 50% 100%; transform: rotateX(0deg) rotate(-1.4deg);
+    transition: transform .75s cubic-bezier(.5, -0.35, .7, .6), opacity .2s .6s; position: relative; }
+  #start .card::after { content: ''; position: absolute; left: 6%; right: 6%; bottom: 13px; border-top: 2px dashed rgba(59, 42, 51, .28); }
+  #start .card { background: none; box-shadow: none; width: auto; }
+  #start .card::after { display: none; }
+  #start h1 { margin: 0; display: flex; flex-direction: column; align-items: center; gap: 2px; font: 900 italic clamp(54px, 12vw, 132px)/0.92 'Arial Black', 'Helvetica Neue', Impact, sans-serif; letter-spacing: -.02em; }
+  #start h1 span { display: block; padding: 0 .16em; -webkit-text-stroke: 2px #2a2146; paint-order: stroke fill; filter: drop-shadow(0 3px 0 #2a2146) drop-shadow(0 12px 14px rgba(20, 10, 40, .45)); }
+  #start h1 span:nth-child(1) { color: #ff8fa3; transform: rotate(-4deg); }
+  #start h1 span:nth-child(2) { color: #fdf0d8; transform: rotate(2deg) translateX(.2em); }
+  #start h1 span:nth-child(3) { color: #46c6c0; transform: rotate(-2deg) translateX(-.1em); }
+  #wordmark { width: min(74vw, 96vh, 760px); height: auto; filter: drop-shadow(0 14px 18px rgba(20, 10, 40, .45)); }
+  #credit { position: fixed; right: 14px; bottom: 12px; z-index: 6; font: 13px/1 Georgia, serif; padding: 7px 11px 8px; text-decoration: none; transform: rotate(-1.5deg); opacity: .92; }
+  body.quiet #credit { display: none; }
+  #start.gone { opacity: 0; pointer-events: none; }
+
+  #prompt { position: fixed; left: 0; top: 0; z-index: 4; pointer-events: none; padding: 6px 12px 7px; font-size: 15px; white-space: nowrap;
+    transform-origin: 50% 100%; opacity: 0; transition: opacity .18s; will-change: transform; }
+  #prompt::after { content: ''; position: absolute; left: 50%; bottom: -7px; width: 14px; height: 14px; background: var(--page); transform: translateX(-50%) rotate(45deg);
+    box-shadow: 3px 3px 4px -2px var(--shadow); }
+  #prompt { border-radius: 16px; padding: 9px 13px 10px; display: flex; gap: 6px; }
+  #prompt i { position: relative; z-index: 1; width: 8px; height: 8px; border-radius: 50%; background: var(--ink); opacity: .78; }
+  #prompt.on { opacity: 1; }
+
+  #caption { position: fixed; left: 50%; bottom: 5.5%; z-index: 4; max-width: min(820px, 76vw); padding: 12px 22px 13px; font-size: clamp(16px, 1.9vw, 22px); line-height: 1.35;
+    text-align: center; pointer-events: none; transform-origin: 50% 100%; transform: translateX(-50%) perspective(700px) rotateX(86deg) rotate(.5deg); opacity: 0;
+    transition: transform .55s cubic-bezier(.3, 1.45, .5, 1), opacity .15s; }
+  #caption.on { transform: translateX(-50%) perspective(700px) rotateX(0deg) rotate(.5deg); opacity: 1; }
+  #caption.cue { white-space: nowrap; max-width: 92vw; padding: 9px 24px 10px; }
+  body.paper-pointer, body.paper-pointer *, body.no-pointer, body.no-pointer * { cursor: none !important; }
+  #pointer { position: fixed; left: 0; top: 0; z-index: 30; pointer-events: none; display: none; will-change: transform; }
+  #pointer svg { position: absolute; filter: drop-shadow(1.5px 2.5px 1.6px rgba(74, 48, 68, .42)); }
+  #pointer .arrow { left: -3px; top: -2px; } #pointer .talk { left: -5px; top: -31px; display: none; }
+  #pointer.hot .arrow { display: none; } #pointer.hot .talk { display: block; }
+  #replies { position: fixed; left: 0; right: 0; bottom: 6%; z-index: 5; display: flex; justify-content: center; gap: min(34vw, 520px); pointer-events: none; perspective: 700px; }
+  #replies button { all: unset; box-sizing: border-box; font: inherit; font-size: clamp(15px, 1.7vw, 21px); color: var(--ink); padding: 11px 20px 12px; max-width: 30vw; text-align: center; cursor: pointer; position: relative;
+    background: radial-gradient(120% 90% at 22% 12%, rgba(255, 252, 240, .9), rgba(255, 252, 240, 0) 60%), var(--page); border-radius: 3px;
+    box-shadow: 0 1px 0 rgba(255, 250, 235, .9) inset, 0 10px 22px -6px var(--shadow), 0 2px 3px rgba(74, 48, 68, .3);
+    transform-origin: 50% 100%; transform: rotateX(86deg); opacity: 0; transition: transform .5s cubic-bezier(.3, 1.45, .5, 1), opacity .15s, box-shadow .15s; }
+  #replies button:nth-child(1) { rotate: -2deg; } #replies button:nth-child(2) { rotate: 1.6deg; }
+  #replies.on button { transform: rotateX(0deg); opacity: 1; pointer-events: auto; }
+  #replies.on button:nth-child(2) { transition-delay: .09s; }
+  #replies button.sel { box-shadow: 0 1px 0 rgba(255, 250, 235, .9) inset, 0 0 0 2px rgba(59, 42, 51, .5), 0 12px 24px -6px var(--shadow); }
+  #replies button.heard { background: #e4dac6; color: rgba(59, 42, 51, .62); }
+  #replies button.heard::after { content: ''; position: absolute; right: 0; top: 0; border-style: solid; border-width: 0 15px 15px 0; border-color: transparent #cbbfa8 transparent transparent; filter: drop-shadow(-1px 1px 1px rgba(74, 48, 68, .35)); }
+  #replies.on button.press { transform: translateY(5px) scale(.95); transition: transform .12s; box-shadow: 0 0 0 2px rgba(59, 42, 51, .6), 0 3px 6px -3px var(--shadow); }
+</style>
+<script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.187.0/build/three.module.js", "papercraft/": "./papercraft/" } }</script>
+</head>
+<body>
+<div id="start"><div class="card"><canvas id="wordmark" width="1200" height="1040"></canvas></div></div>
+<a id="credit" class="paper" href="https://x.com/starwardshar" target="_blank" rel="noopener">made by @starwardshar</a>
+<div id="prompt" class="paper"><i></i><i></i><i></i></div>
+<div id="caption" class="paper"></div>
+<div id="pointer"><svg class="arrow" width="30" height="34" viewBox="0 0 30 34"><path d="M3 2 L3 25 L9.5 19.5 L14 30 L19 27.8 L14.6 17.6 L23 17 Z" fill="#fbf3e1" stroke="#4a2f33" stroke-width="1.7" stroke-linejoin="round"/><path d="M5.2 6.5 L5.2 20.4" stroke="#fffdf4" stroke-width="1.3" stroke-linecap="round"/></svg><svg class="talk" width="36" height="34" viewBox="0 0 36 34"><path d="M9 3 H27 Q33 3 33 9 V17 Q33 23 27 23 H15 L5 31 L8 23 Q3 22 3 17 V9 Q3 3 9 3 Z" fill="#fbf3e1" stroke="#4a2f33" stroke-width="1.7" stroke-linejoin="round"/><circle cx="11.5" cy="13" r="2" fill="#4a2f33"/><circle cx="18" cy="13" r="2" fill="#4a2f33"/><circle cx="24.5" cy="13" r="2" fill="#4a2f33"/></svg></div>
+<div id="replies"><button class="paper"></button><button class="paper"></button></div>
+<script type="module" src="./scene.js"></script>
+</body>
+</html>

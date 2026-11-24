@@ -1,0 +1,5 @@
+.venv/
+frames/
+tools/
+concept/
+.DS_Store
