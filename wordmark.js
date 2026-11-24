@@ -25,12 +25,12 @@ export function drawWordmark(canvas, sheet = null) {
   const g = canvas.getContext('2d'), W = canvas.width, H = canvas.height, u = Math.min(W / 30, H / 26);
   g.clearRect(0, 0, W, H);
   WORDS.forEach(([word, col], row) => {
-    const wd = word.length * 4.9 - 0.9, x0 = (W / u - wd) / 2 + (row - 1) * 1.2, y0 = 25 - row * 8;
+    const wd = word.length * 4.9 - 0.9, x0 = (W / u - wd) / 2 + (row - 1) * 1.2, y0 = 9 + row * 8;
     [...word].forEach((ch, i) => {
       for (const [dx, dy, c, grow] of [[0.5, -0.55, 'rgba(20,10,40,0.35)', 0.5], [0, 0, '#2a2146', 0.42], [-0.12, 0.16, col, 0]]) {
         g.save(); g.setTransform(u, 0, 0, -u, (x0 + i * 4.9 + dx) * u, (y0 + dy) * u); g.transform(1, 0, SLANT, 1, 0, 0); g.rotate(((i * 7 + row * 3) % 5 - 2) * 0.012); g.fillStyle = c; strokeGlyph(g, ch, grow); g.restore();
       }
     });
   });
-  if (sheet) { g.save(); g.setTransform(1, 0, 0, 1, 0, 0); g.globalCompositeOperation = 'source-atop'; g.globalAlpha = 0.5; g.fillStyle = g.createPattern(sheet, 'repeat'); g.globalCompositeOperation = 'multiply'; g.fillRect(0, 0, W, H); g.restore(); }
+  if (sheet) { const tmp = document.createElement('canvas'); tmp.width = W; tmp.height = H; const t = tmp.getContext('2d'); t.fillStyle = t.createPattern(sheet, 'repeat'); t.fillRect(0, 0, W, H); t.globalCompositeOperation = 'destination-in'; t.drawImage(canvas, 0, 0); g.save(); g.setTransform(1, 0, 0, 1, 0, 0); g.globalAlpha = 0.5; g.globalCompositeOperation = 'multiply'; g.drawImage(tmp, 0, 0); g.restore(); }
 }
