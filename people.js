@@ -10,23 +10,23 @@ export default [
       "caption": "Listen. I need you to go talk to Lenny, down at the marina, and grab the goods, and when he starts explaining himself, which he will, you are going to nod, take the box, and leave.",
       "cues": [
         {
-          "t": 0.67,
+          "t": 0.76,
           "text": "Listen."
         },
         {
-          "t": 1.07,
+          "t": 1.93,
           "text": "I need you to go talk to Lenny, down at the"
         },
         {
-          "t": 5.05,
+          "t": 3.8,
           "text": "marina, and grab the goods, and when he"
         },
         {
-          "t": 7.73,
+          "t": 6.48,
           "text": "starts explaining himself, which he will,"
         },
         {
-          "t": 10.27,
+          "t": 9.02,
           "text": "you are going to nod, take the box, and leave."
         }
       ]
