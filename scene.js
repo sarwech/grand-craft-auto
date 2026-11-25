@@ -6,7 +6,7 @@ import { makeBigDoll } from './figures.js';
 import { createTalk } from './talk.js';
 import { createSound } from './sound.js';
 import { foldOut, laneCheck, flight, pageEdges4 } from './world.js';
-import { GLYPHS, WORDS, SLANT, strokeGlyph, drawWordmark } from './wordmark.js';
+import { drawWordmark } from './wordmark.js';
 import PEOPLE from './people.js';
 import { createCaper } from './caper.js';
 import { boardZ, roadZ, MX, PAGE, shoreZ, S2, S3, XS, STORE, ALLEY, COURT, PLAZA, LOT, BUILDINGS, inBuilding, nearest } from './city.js';
@@ -21,11 +21,10 @@ const s01 = (t) => { t = Math.min(1, Math.max(0, t)); return t * t * (3 - 2 * t)
 const HERO_AT = [0, boardZ(0) + 2.3];
 const BEA_X = 63, PIER = { x: MX, d: 19, w: 7.2, h: 0.46 }; PIER.z = boardZ(MX) + 3.3 + PIER.d;
 const SPOT = {
-  marisol: { at: [-19, boardZ(-19) - 2.6], spot: [-12.4, boardZ(-12.4) + 1.2], hail: 9, yaw: 0.35 },
+  marisol: { at: [-19, boardZ(-19) - 2.6], spot: [-12.4, boardZ(-12.4) + 1.2], hail: 9, yaw: 0.35, ask: true },
   bea: { at: [BEA_X - 2.2, roadZ(BEA_X) + 6.6], spot: [BEA_X - 8.2, roadZ(BEA_X) + 8.2], hail: 9.5, yaw: 0.2 },
   lenny: { at: [PIER.x + 2.3, PIER.z - 6.5], spot: [PIER.x - 2.7, PIER.z - 4.4], hail: 8.5, yaw: 0, deck: [2.3, -6.5], lift: PIER.h + 0.18, pull: true },
   otis: { at: [STORE.x + 3.5, STORE.z - 7.6], spot: [STORE.x - 2.8, STORE.z - 3.4], hail: 7.7, yaw: -0.15 },
-  officer: { at: [-8.4, boardZ(-8.4) + 0.4], spot: [0.4, boardZ(0.4) + 2.3], hail: 4, yaw: 0.3, manual: true },
 };
 
 const H = createHarness({
@@ -156,7 +155,7 @@ function house(b) {
   const side = (P) => { P.gradient(P2.shade(wall, -0.04), P2.shade(wall, -0.18), 0.4); P.felt(0.7); };
   const roof = (P) => { P.gradient(P2.shade(roofC, 0.1), P2.shade(roofC, -0.15), 0.3); P.felt(0.6); P.marks('hatch', { color: P2.shade(roofC, -0.35), alpha: 0.35, size: 0.4, units: true, angle: 0 }); };
   const node = prismFold([[-w / 2, 0], [w / 2, 0], [w / 2, -d], [-w / 2, -d]], { h, roof: 'pyramid', roofH: 2.6, paper: H.paper, seed: 2400 + i * 17, thickness: 0.08, edgeWidth: 0.08, paints: { wall: [front, side, side, side], roof }, print: H.cardOpts(x, z, 1, null, 1.1) });
-  const hh = popup(null, null, { node, height: h + 2.6, x, z, level: true }); H.glowing(hh.group); return hh;
+  const hh = popup(null, null, { node, height: h + 2.6, x, z, level: true }); hh.foot = [x - w / 2, x + w / 2, z - d, z]; H.glowing(hh.group); return hh;
 }
 function hotel(x, o) {
   const { w, h, d = 9, wall, accent, trim, icon, seed, kind = 'hotel' } = o, z = o.z ?? -23.4, floors = Math.max(2, Math.floor((h - 3.6) / 2.5)), print = H.cardOpts(x, z, 1, null, 1.1);
@@ -196,7 +195,7 @@ function hotel(x, o) {
   sign.position.set(0, kind === 'hotel' ? 2.5 : 0, d / 2 - 0.05); node.userData.top?.add(sign); SIGNS.push(sign);
   const halo = new THREE.Mesh(new THREE.PlaneGeometry(9, 7), new THREE.MeshBasicMaterial({ map: haloTex(), transparent: true, opacity: 0.5, depthWrite: false, blending: THREE.AdditiveBlending, color: accent }));
   halo.position.set(0, kind === 'hotel' ? 4.6 : 2.1, d / 2 - 0.2); node.userData.top?.add(halo);
-  const hh = popup(null, null, { node, height: h, x, z, level: true });
+  const hh = popup(null, null, { node, height: h, x, z, level: true }); hh.foot = [x - w / 2, x + w / 2, z - d, z];
   H.glowing(hh.group);
   walk.wall(x - w / 2, z + 0.3, x + w / 2, z + 0.3, { r: 0.5, name: 'hotel' });
   return hh;
@@ -341,7 +340,7 @@ const WAVE_W = 24, WAVE_N = 3;
 const wavePts = (hh, lift = 0) => { const top = []; for (let k = 0; k < WAVE_N; k++) top.push(...crest(-WAVE_W / 2 + k * WAVE_W / WAVE_N, WAVE_W / WAVE_N, hh).map(([x, y]) => [x, y + lift])); return [[-WAVE_W / 2, 0], [WAVE_W / 2, 0], [WAVE_W / 2, 0.3 * hh + lift], ...top.reverse()]; };
 const foamPts = (hh) => { const p = [[-WAVE_W / 2, 0], [WAVE_W / 2, 0], [WAVE_W / 2, 0.16 * hh]]; for (let k = WAVE_N - 1; k >= 0; k--) { const x0 = -WAVE_W / 2 + k * WAVE_W / WAVE_N, sw = WAVE_W / WAVE_N; p.push([x0 + 0.99 * sw, 0.2 * hh], ...foam(x0, sw, hh).slice().reverse().map(([x, y]) => [x, y]), [x0 + 0.4 * sw, 0.2 * hh]); } p.push([-WAVE_W / 2, 0.16 * hh]); return p; };
 
-const waves = [], movers = [], letters = [], boats = [];
+const waves = [], movers = [], boats = [];
 const CARS = []; let heroDoll = null, heroHandle = null, conv = null, boxMesh = null, foamLine = null, marisolH = null;
 const KEYS = new Set();
 const X = { H, C, SFX, CARS, people, KEYS, ICON, haloTex, car: (...a) => car(...a), popup: (...a) => popup(...a), geo: { roadZ, boardZ, shoreZ, PAGE, MX, PIER, HERO_AT, STORE, SPOT }, conv: () => conv, setConv: (c) => { conv = c; }, sheet: () => H.paper.sheet, get heroDoll() { return heroDoll; }, get heroHandle() { return heroHandle; } };
@@ -435,38 +434,7 @@ function build() {
 
   const sky = (wd, hgt) => { const c = document.createElement('canvas'); c.width = 8; c.height = 256; const g = c.getContext('2d'), gr = g.createLinearGradient(0, 0, 0, 256); [[0, '#2a2146'], [0.3, '#5b3f8a'], [0.52, '#b0669c'], [0.7, '#f08a7c'], [0.85, '#ffb070'], [1, '#ffd9a0']].forEach(([t, col]) => gr.addColorStop(t, col)); g.fillStyle = gr; g.fillRect(0, 0, 8, 256); const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace; return new THREE.Mesh(new THREE.PlaneGeometry(wd, hgt), new THREE.MeshBasicMaterial({ map: tex })); };
   const s1 = sky(1800, 340); s1.position.set(120, 170, 300); s1.rotation.y = Math.PI; const s2 = sky(1100, 340); s2.position.set(560, 170, 20); s2.rotation.y = -Math.PI / 2; const s3 = sky(1800, 340); s3.position.set(120, 170, -330); H.scene.add(s1, s2, s3); H.scene.background = new THREE.Color('#f2b48c');
-  const flatMesh = (pts, paint, x, y, z, ppu = 5, glow = 0) => { const m = makeCard(pts, { paper: H.paper, paint, thickness: 0.3, edgeWidth: 0, pxPerUnit: ppu, seed: 77, folds: [], back: false, effects: 0, contact: null, glow }); m.position.set(x, y, z); m.rotation.y = Math.PI; m.castShadow = false; m.receiveShadow = false; H.scene.add(m); return m; };
-  [[72, '#ffd6a8'], [56, '#ffb07c'], [40, '#ff8f7a'], [24, '#ffe6b8']].forEach(([r, col], i) => flatMesh(arc(0, 0, r, r, 0, Math.PI, 44), (P) => { P.fill(col); }, 70, 0, 292 - i * 2, 3));
-  for (const [x, y, wd, col, zz] of [[40, 34, 120, '#ffd0c0', 282], [112, 50, 100, '#f6a8b0', 283], [56, 66, 80, '#c890c8', 284], [-150, 84, 140, '#e098b8', 282], [250, 58, 130, '#ffc8a8', 280]]) flatMesh([...arc(wd / 2 - 5, 3, 5, 4, -Math.PI / 2, Math.PI / 2, 8), ...arc(-wd / 2 + 5, 3, 5, 4, Math.PI / 2, Math.PI * 1.5, 8)].map(([px, py]) => [px, py + 2]), (P) => { P.fill(col); }, x, y, zz, 3);
-  const LAYERS = [['#f2a8b8', '#e08aa8', 258, 30, 62, 0.25], ['#c88ac0', '#a86cb0', 248, 26, 76, 0.4], ['#8a68b8', '#6a4c9c', 238, 22, 64, 0.55], ['#f08aa0', '#c8608c', 228, 16, 50, 0.7], ['#46c6c0', '#1fa39c', 218, 12, 38, 0.85], ['#2a5d86', '#2a2146', 208, 8, 26, 1]];
-  LAYERS.forEach(([c0, c1, zz, lo, hi, lit], li) => {
-    const r = P2.rng(40 + li * 7), wd = 250 - li * 12, blds = []; let x = -wd / 2;
-    while (x < wd / 2 - 6) { const bw = 9 + r() * 9, bh = lo + r() * (hi - lo), kind = Math.floor(r() * 5); blds.push([x, Math.min(bw, wd / 2 - x), bh, kind]); x += bw * (0.8 + r() * 0.3); }
-    const pts = [[wd / 2, 0], [wd / 2, lo * 0.4]]; for (let i = blds.length - 1; i >= 0; i--) { const [bx, bw, bh, kind] = blds[i], x1 = Math.min(wd / 2, bx + bw);
-      if (kind === 0) pts.push([x1, bh], [bx, bh]);
-      else if (kind === 1) pts.push([x1, bh * 0.8], [x1 - bw * 0.2, bh * 0.8], [x1 - bw * 0.2, bh * 0.92], [x1 - bw * 0.36, bh * 0.92], [x1 - bw * 0.36, bh], [bx + bw * 0.36, bh], [bx + bw * 0.36, bh * 0.92], [bx + bw * 0.2, bh * 0.92], [bx + bw * 0.2, bh * 0.8], [bx, bh * 0.8]);
-      else if (kind === 2) pts.push([x1, bh * 0.78], [bx + bw * 0.56, bh * 0.78], [bx + bw * 0.5, bh * 1.25], [bx + bw * 0.44, bh * 0.78], [bx, bh * 0.78]);
-      else if (kind === 3) pts.push(...arc(bx + bw / 2, bh * 0.82, bw / 2, bh * 0.18, 0, Math.PI, 8));
-      else pts.push([x1, bh * 0.86], [x1 - bw * 0.15, bh * 0.86], [x1 - bw * 0.15, bh], [bx + bw * 0.15, bh], [bx + bw * 0.15, bh * 0.86], [bx, bh * 0.86]); }
-    pts.push([-wd / 2, lo * 0.4], [-wd / 2, 0]);
-    flatMesh(pts, (P) => { P.gradient(c0, c1, 0); for (const [bx, bw, bh, kind] of blds) { P.draw((g) => { g.fillStyle = r() < 0.5 ? P2.shade(c0, -0.12) : P2.shade(c1, 0.1); g.fillRect(bx + 0.4, 0, bw * 0.5, bh * 0.78); }); const win = (g) => { for (let wy = 3; wy < bh * 0.74; wy += 3.6) for (let wx = bx + 1.2; wx < bx + bw - 1.6; wx += 2.3) if (r() < 0.55) g.fillRect(wx, wy, 1.1, 1.9); if (kind === 4 && li > 2) { g.beginPath(); g.arc(bx + bw / 2, bh - 2.2, 1.6, 0, 7); g.fill(); } }; P.draw((g) => { g.fillStyle = P2.rgba('#ffe2a0', 0.4 + lit * 0.5); win(g); }); if (li > 2) P.glow((g) => { g.globalAlpha = 0.5; win(g); }); } }, 70 + (li % 2 ? 8 : -6), 0, zz, 4, 0.9);
-  });
-  { const m = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ color: '#ffc890', transparent: true, opacity: 0.3, depthWrite: false })); m.rotation.x = -Math.PI / 2; m.position.set(70, 0.05, 140); m.scale.set(30, 130, 1); H.scene.add(m); }
-  const dusk = new THREE.MeshBasicMaterial({ color: '#4a3470' });
-  for (const [x, z, sc] of [[-46, -12, 2.1], [22, -24, 1.9], [-58, -20, 2.4]]) { const q = ST.palm[Math.floor(rnd() * 5)], m = makeCard(q.pts, { materials: [dusk, dusk, dusk] }); m.scale.setScalar(sc); m.position.set(x, 0, z); m.rotation.y = Math.PI + 0.3; m.castShadow = false; m.visible = false; H.scene.add(m); letters.silhouettes = (letters.silhouettes || []).concat(m); }
-
   caper.build();
-  const LS = 1.38, pitchX = 4.9 * LS + 0.55, total = 14 * pitchX + 2 * 3.2; let li = 0, xc = 34 + total / 2;
-  WORDS.forEach(([word, col], row) => {
-    [...word].forEach((ch) => {
-      const [pts, paint] = P2.drawnPiece((g, ink) => { g.save(); g.translate(-2.4, 0.5); g.transform(1, 0, SLANT, 1, 0, 0); g.fillStyle = ink(C.navy); strokeGlyph(g, ch, 0.34); g.translate(-0.1, 0.12); g.fillStyle = ink(col); strokeGlyph(g, ch, 0); g.restore(); }, { w: 7.4, h: 7.2, res: 40, finish: false, name: `letter ${ch}` });
-      const card = makeCard(pts, { paper: H.paper, paint, thickness: 0.2, edgeWidth: 0.1, pxPerUnit: 36, seed: 2000 + li, back: 'kraft' }); card.scale.setScalar(LS);
-      const fm = card.material[0]; fm.emissive.set('#ffffff'); fm.emissiveMap = fm.map; fm.emissiveIntensity = 0.6;
-      const h = hinge(card, { at: new THREE.Vector3(xc - pitchX / 2, 0.05, 68 + (li % 2) * 0.6), yaw: Math.PI + ((li * 5) % 3 - 1) * 0.03, open: 0, size: 0.6, rest: -0.06 }); h.group.visible = false; H.scene.add(h.group);
-      letters.push({ h, at: li * 0.1 }); li++; xc -= pitchX;
-    });
-    xc -= 3.2;
-  });
 }
 
 if (flags.TEST) { heroDoll = makeBigDoll(H, { id: 'hero', seed: 900, ...DRESS.hero }); heroHandle = popup(null, null, { node: heroDoll, height: 5.5, x: 2, z: -4, scale: 0.86 }); H.setHero(heroHandle, { stride: heroDoll.userData.stride }); popup(...K.palm(), { x: -3, z: -9, cross: true }); popup(null, null, { node: car(C.teal, 900), height: 2, x: 8, z: -6 }); }
@@ -482,35 +450,36 @@ if (!flags.TEST) {
   H.onStep((t, dt) => life.update(dt, H.target)); H.onRestart(() => life.reset(H.target));
 }
 
-const T = { open: 25.0, steer: 26.15, swing: 26.3, reveal: 28.3, end: 30.6, lettersUp: 12.3, lettersDown: 17.2 };
-const INTRO = { on: !flags.TEST, t: 0, cut: T.end, stage: 0, gulls: 0, m: 0 };
-const SHOT3 = { pos: [0.7, 6.9, HERO_AT[1] - 12.5], look: [-4.2, 4.3, HERO_AT[1] + 30] };
+const T = { fly: 10.2, title: 11.9, ring: 12.3, open: 16.5, steer: 16.7, swing: 17.4, end: 19.9 };
+const INTRO = { on: !flags.TEST, t: 0, cut: T.end, stage: 0, gulls: 0, m: 0, st: 0 };
+const SHOT_B = { pos: [-3, 39, HERO_AT[1] + 40], look: [-3, 0, HERO_AT[1] - 9], fov: 32 };
 const cam = flight(H, [
   { t: 0, pos: [-128, 4.4, 36], look: [-96, 2.4, 27], fov: 40 },
   { t: 4, pos: [-100, 5.2, 27], look: [-68, 2.6, 15], fov: 40 },
   { t: 7.2, pos: [-76, 7.6, 7], look: [-46, 3.6, -6], fov: 40 },
-  { t: 10.2, pos: [-50, 11, -8], look: [-18, 6.5, -17], fov: 40 },
-  { t: 13, pos: [-26, 27, -31], look: [42, 15, 170], fov: 38 },
-  { t: 20, pos: [-12, 31, -38], look: [50, 17, 170], fov: 36 },
-  { t: 24, pos: SHOT3.pos, look: SHOT3.look, fov: 38 },
-  { t: 40, pos: SHOT3.pos, look: SHOT3.look, fov: 38 },
+  { t: T.fly, pos: [-50, 11, -8], look: [-18, 6.5, -17], fov: 40 },
+  { t: 13.6, pos: [-14, 42, HERO_AT[1] + 44], look: [-7, 0, HERO_AT[1] - 8], fov: 35 },
+  { t: T.swing, ...SHOT_B },
+  { t: 40, ...SHOT_B },
 ]);
 const V3 = THREE.Vector3;
 cam.custom = (t, api) => {
-  if (t < T.swing || !people.length) return false;
-  const m = MARISOL, hx = HERO_AT[0], hz = HERO_AT[1], sPos = new V3(...SHOT3.pos), sLook = new V3(...SHOT3.look);
-  const rPos = new V3(hx + 9.5, 6.8, hz + 13.5), rLook = new V3((hx + m.at[0]) / 2 + 2, 2.8, (hz + m.at[1]) / 2);
-  if (t < T.reveal) {
-    const u = s01((t - T.swing) / (T.reveal - T.swing)), aS = Math.atan2(sPos.x - hx, sPos.z - hz), aE = Math.atan2(rPos.x - hx, rPos.z - hz);
-    const a = aS + (aE - aS) * u, rS = Math.hypot(sPos.x - hx, sPos.z - hz), rE = Math.hypot(rPos.x - hx, rPos.z - hz), r = rS + (rE - rS) * u;
-    api.pos.set(hx + Math.sin(a) * r, sPos.y + (rPos.y - sPos.y) * u, hz + Math.cos(a) * r); api.look.lerpVectors(sLook, rLook, s01(u * 1.15)); api.fov = 38 + (30 - 38) * u; api.focus = rLook;
-    return true;
-  }
-  const u = s01((t - T.reveal) / (T.end - T.reveal));
-  api.pos.lerpVectors(rPos, api.playPos, u); api.look.lerpVectors(rLook, api.playLook, u); api.fov = 30 + (api.playFov - 30) * u; api.focus = api.look;
+  if (t < T.swing) return false;
+  const u = s01((t - T.swing) / (T.end - T.swing));
+  api.pos.lerpVectors(new V3(...SHOT_B.pos), api.playPos, u); api.look.lerpVectors(new V3(...SHOT_B.look), api.playLook, u); api.fov = SHOT_B.fov + (api.playFov - SHOT_B.fov) * u; api.focus = api.look;
   api.focusBand = 0.8 + (api.playBand - 0.8) * u; api.blur = 0.55 + 0.45 * u;
   return true;
 };
+const title = { el: document.getElementById('title'), x: 0, v: 0, goal: 0 };
+const titleStep = (dt) => {
+  if (!title.el) return;
+  const k = title.goal ? 120 : 90, c = title.goal ? 12 : 19, n = Math.ceil(dt / 0.008), h = dt / n;
+  for (let i = 0; i < n; i++) { title.v += (k * (title.goal - title.x) - c * title.v) * h; title.x += title.v * h; }
+  title.el.style.visibility = title.goal || title.x > 0.01 ? 'visible' : 'hidden';
+  title.el.style.transform = `translateX(-50%) perspective(1100px) rotateX(${(-90 * (1 - title.x)).toFixed(2)}deg) rotate(-1.5deg)`;
+};
+const hideTitle = () => { title.goal = 0; title.x = 0; title.v = 0; titleStep(0); };
+const ringR = () => 6 + 20 * s01((INTRO.t - T.ring) / (T.open - T.ring));
 const heroLookY = (m) => m.doll.userData.headY * m.scale;
 const marker = (() => {
   const [pts, paint] = P2.drawnPiece((g, ink) => { g.fillStyle = ink(C.navy); D.rect(g, -0.07, 0, 0.14, 1.7); g.fillStyle = ink(C.pink); D.poly(g, [[0.05, 1.7], [0.95, 1.4], [0.05, 1.08]]); }, { w: 2.1, h: 1.9, name: 'marker' });
@@ -523,7 +492,7 @@ const carCue = (() => {
   const [pts, paint] = P2.drawnPiece((g, ink) => { g.fillStyle = ink(C.cream); D.poly(g, [[0, 0], [0.42, 0.55], [1.0, 0.55], [1.0, 2.3], [-1.0, 2.3], [-1.0, 0.55], [-0.42, 0.55]]); g.fillStyle = ink(C.navy); D.ell(g, 0, 1.42, 0.68, 0.68); g.fillStyle = ink(C.cream); D.ell(g, 0, 1.42, 0.44, 0.44); g.fillStyle = ink(C.navy); D.rect(g, -0.6, 1.34, 1.2, 0.16); D.rect(g, -0.08, 0.8, 0.16, 0.62); g.fillStyle = ink(C.gold); D.ell(g, 0, 1.42, 0.17, 0.17); }, { w: 2.3, h: 2.5, res: 90, finish: false, name: 'car cue' });
   const m = makeCard(pts, { paper: H.paper, paint, thickness: 0.07, edgeWidth: 0.07, pxPerUnit: 70, seed: 515, folds: [], back: 'mirror' }); m.castShadow = false; m.visible = false; m.material[0].emissive.set('#ffffff'); m.material[0].emissiveMap = m.material[0].map; m.material[0].emissiveIntensity = 0.45; H.scene.add(m); return m;
 })();
-const skip = () => { if (INTRO.on && INTRO.t > 2 && INTRO.t < T.open - 0.1) { INTRO.t = T.open - 0.3; for (const L of letters) { L.h.reset(0); L.h.group.visible = false; L.s = 3; } } };
+const skip = () => { if (INTRO.on && INTRO.t > 2 && INTRO.t < T.swing - 0.2) { INTRO.t = T.swing - 0.2; hideTitle(); } };
 const route = []; for (let x = -6; x < SPOT.bea.spot[0] - 3; x += 7) route.push([x, boardZ(x) - 0.4]);
 const carC = () => [conv.x + Math.sin(conv.th) * 1.5, conv.z - Math.cos(conv.th) * 1.5];
 const heroNearCar = (r) => { const p = window.__papercraft.heroPos, [cx, cz] = carC(); return Math.hypot(p.x - cx, p.z - cz) < r; };
@@ -545,12 +514,19 @@ talk?.attach();
 caper?.start();
 if (!flags.TEST) {
   cam.attach();
-  { const wm = document.getElementById('wordmark'); if (wm) drawWordmark(wm, H.paper.sheet); }
+  for (const id of ['wordmark', 'title-mark']) { const wm = document.getElementById(id); if (wm) drawWordmark(wm, H.paper.sheet); }
   pageEdges4(H, { x0: PAGE.x0, x1: PAGE.x1, z0: PAGE.z0, z1: PAGE.z1, paperMaterial });
   for (const sgn of SIGNS) sgn.userData.setGlow?.(2.3);
   const hook = window.__papercraft; SFX.loadMusic('street', 'media/street.mp3'); SFX.loadMusic('radio', 'media/radio.mp3');
   addEventListener('keydown', (e) => KEYS.add(e.code)); addEventListener('keyup', (e) => KEYS.delete(e.code)); addEventListener('blur', () => KEYS.clear());
-  const fold = foldOut(H, { sfx: SFX, reach: 1, dist: (h, p) => { if (h.manual) return 9; const dx = h.x - p.x, dz = h.z - p.z, k = conv.on ? 1.45 : 1; if (h.rocks) return Math.abs(dx) < 70 ? 0 : 9; return Math.abs(dx) < 48 * k && dz > -64 * k && dz < 30 ? 0 : 9; }, startUp: (h) => !h.manual && (h.rocks || (h.z > -48 && h.x < 52)), hold: () => INTRO.on });
+  const fc = { x: HERO_AT[0], z: HERO_AT[1], rx: 19, rz: 13 };
+  H.onStep(() => {
+    if (INTRO.on && INTRO.t >= T.fly) { const r = ringR(); Object.assign(fc, { x: HERO_AT[0], z: HERO_AT[1], rx: r, rz: r }); }
+    else if (INTRO.on) { cam.at(INTRO.t); Object.assign(fc, { x: cam.look.x, z: cam.look.z, rx: 24, rz: 24 }); }
+    else if (conv.on) { const [cx, cz] = carC(), a = 7 + Math.abs(conv.v) * 0.6; Object.assign(fc, { x: cx + Math.cos(conv.th) * a, z: cz + Math.sin(conv.th) * a, rx: 24, rz: 18 }); }
+    else Object.assign(fc, { x: hook.heroPos.x, z: hook.heroPos.z, rx: 19, rz: 13 });
+  });
+  const fold = foldOut(H, { sfx: SFX, reach: 13, dist: (h) => { if (h.manual) return 99; if (h.rocks) return 0; const f = h.foot, dx = f ? Math.max(f[0] - fc.x, 0, fc.x - f[1]) : h.x - fc.x, dz = f ? Math.max(f[2] - fc.z, 0, fc.z - f[3]) : h.z - fc.z; return Math.hypot(dx / fc.rx, dz / fc.rz) * 13; }, startUp: (h) => !h.manual && h.rocks });
   let waveT = 0, gullT = 30, dw = 0; const wrote = new V3(NaN, 0, 0), base = new V3(), dPos = new V3(), dLook = new V3(), lk = new V3(), sPos = new V3(), sLook = new V3();
   cam.extra = (c, post) => {
     const sv = caper.view(), e = s01(dw), e2 = s01(sv.w); if (e <= 0 && e2 <= 0) return;
@@ -560,13 +536,13 @@ if (!flags.TEST) {
     if (e2 > 0) { c.position.lerp(sPos.set(...sv.pos), e2); lk.lerp(sLook.set(...sv.look), e2); post.focus.lerp(sLook.set(hook.heroPos.x, 2.4, hook.heroPos.z), e2); }
     c.lookAt(lk); c.updateMatrixWorld(); wrote.copy(c.position);
   };
-  const resetIntro = () => { caper.reset(); INTRO.on = true; INTRO.t = 0; INTRO.stage = 0; INTRO.gulls = 0; INTRO.m = 0; waveT = 0; marker.h.reset(0); for (const L of letters) { L.h.reset(0); L.h.group.visible = false; L.s = 0; } for (const m of letters.silhouettes) m.visible = true; marisolH.reset(0); marisolH.group.visible = false; marisolH.up = false;
+  const resetIntro = () => { caper.reset(); INTRO.on = true; INTRO.t = 0; INTRO.stage = 0; INTRO.gulls = 0; INTRO.m = 0; INTRO.st = 0; waveT = 0; marker.h.reset(0); hideTitle(); marisolH.reset(0); marisolH.group.visible = false; marisolH.up = false;
     for (const c of CARS) { c.on = false; c.v = 0; c.th = 0; c.steer = 0; c.x = c.x0; c.z = c.z0; c.h.x = c.x; c.h.group.position.set(c.x, c.h.group.position.y, c.z); c.h.group.rotation.y = 0; if (c.solid && !c.walk.solids.includes(c.solid)) c.walk.solids.push(c.solid); } boxState = 0; if (boxMesh.parent !== decks.pier) decks.pier.add(boxMesh); boxMesh.position.set(...boxMesh.userData.home); boxMesh.rotation.set(0, 0, 0); for (const m of movers) m.x = m.x0; };
   H.onRestart(resetIntro);
   let first = true;
   H.onStep((t, dt) => {
     if (first) { first = false; resetIntro(); }
-    for (const L of letters) L.h.update(dt);
+    titleStep(dt);
     marker.h.update(dt); if (marker.h.open === 0 && marker.h.p < 0.03) marker.h.group.visible = false;
     SFX.update(dt, talk.speaking()); SFX.music(dt, conv.on ? caper.music(conv) : { street: INTRO.on ? 0.8 : 0.3 });
     const eye = INTRO.on ? (cam.at(INTRO.t), cam.pos) : H.camera.position;
@@ -621,18 +597,14 @@ if (!flags.TEST) {
     INTRO.t += dt; cam.t = INTRO.t; cam.weight = 1; const it = INTRO.t;
     if (INTRO.gulls === 0 && it > 2.5) { INTRO.gulls = 1; SFX.gull(); }
     if (INTRO.gulls === 1 && it > 10.4) { INTRO.gulls = 2; SFX.gull(); SFX.wave(0.05); }
-    if (INTRO.gulls === 2 && it > 20.5) { INTRO.gulls = 3; SFX.gull(); }
-    for (const L of letters) {
-      if (!L.s && it > T.lettersUp + L.at && it < T.lettersDown) { L.s = 1; L.h.group.visible = true; L.h.set(1, 0); SFX.flap({ size: 0.5, up: true }); }
-      if (L.s === 1 && it > T.lettersDown + (letters.length * 0.11 - L.at) * 0.6) { L.s = 2; L.h.set(0, 0); SFX.flap({ size: 0.5, up: false }); }
-      if (L.s === 2 && L.h.p < 0.04) { L.s = 3; L.h.group.visible = false; }
-    }
-    if (it > 22) for (const m of letters.silhouettes) m.visible = false;
-    if (INTRO.stage === 0 && it >= T.open) { INTRO.stage = 1; for (const L of letters) { L.h.reset(0); L.h.group.visible = false; L.s = 3; } }
-    if (!INTRO.m && it > 21.4) { INTRO.m = 1; marisolH.group.visible = true; marisolH.reset(0); marisolH.set(1, 0); marisolH.up = true; }
-    if (INTRO.stage === 1 && it >= T.steer) INTRO.stage = 2;
-    if (INTRO.stage === 2 && it < T.steer + 0.2) hook.steer(MARISOL.at[0] - hook.heroPos.x, MARISOL.at[1] - 2.6 - hook.heroPos.z); else if (INTRO.stage === 2) { hook.steer(null); INTRO.stage = 3; }
+    if (INTRO.gulls === 2 && it > 15.5) { INTRO.gulls = 3; SFX.gull(); }
+    const up = it >= T.title && it < T.open ? 1 : 0;
+    if (up !== title.goal) { title.goal = up; SFX.flap({ size: up ? 1 : 0.8, up: !!up }); }
+    if (INTRO.stage === 0 && it >= T.open) INTRO.stage = 1;
+    if (!INTRO.m && ringR() > Math.hypot(MARISOL.at[0] - HERO_AT[0], MARISOL.at[1] - HERO_AT[1])) { INTRO.m = 1; marisolH.group.visible = true; marisolH.reset(0); marisolH.set(1, 0); marisolH.up = true; }
+    if (INTRO.stage === 1 && it >= T.steer) { INTRO.stage = 2; INTRO.st = it; }
+    if (INTRO.stage === 2 && it < INTRO.st + 0.2) hook.steer(MARISOL.at[0] - hook.heroPos.x, MARISOL.at[1] - 2.6 - hook.heroPos.z); else if (INTRO.stage === 2) { hook.steer(null); INTRO.stage = 3; }
     if (it >= T.end) { INTRO.on = false; cam.weight = 0; hook.steer(null); }
   });
-  window.__world = { caper, sfx: SFX, intro: INTRO, T, skip, drive, get conv() { return conv; }, cars: CARS, movers, laneCheck: () => laneCheck(LANE, SOLIDS, 1.6), settleCheck: fold.settleCheck, revealAll: fold.revealAll, risen: fold.risen, total: fold.total, box: () => boxState, endIntro() { INTRO.t = Math.max(INTRO.t, T.end - 0.02); if (INTRO.stage < 2) { marisolH.group.visible = true; marisolH.reset(1); marisolH.up = true; INTRO.stage = 3; INTRO.m = 1; } }, nearest };
+  window.__world = { caper, sfx: SFX, intro: INTRO, T, skip, drive, get conv() { return conv; }, cars: CARS, movers, laneCheck: () => laneCheck(LANE, SOLIDS, 1.6), settleCheck: fold.settleCheck, revealAll: fold.revealAll, risen: fold.risen, total: fold.total, box: () => boxState, endIntro() { INTRO.t = Math.max(INTRO.t, T.end - 0.02); hideTitle(); if (INTRO.stage < 2) { marisolH.group.visible = true; marisolH.reset(1); marisolH.up = true; INTRO.stage = 3; INTRO.m = 1; } }, nearest };
 }

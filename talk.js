@@ -241,7 +241,7 @@ export function createTalk(H, { people, cards = false, outro = [], cream = '#f6e
     if (bk) barkStep(dt);
     near = null;
     let hailed = null;
-    for (const v of people) { if (v.rearm === false && v.dist > (v.hail || 8.5) + 1) v.rearm = true; if (v.handle.p < 0.9) continue; if (v.dist < reach(v) && (!near || v.dist < near.dist)) near = v; if (!v.greeted && v.rearm !== false && v.dist < (v.hail || 8.5) && (!hailed || v.dist < hailed.dist)) hailed = v; }
+    for (const v of people) { if (v.rearm === false && v.dist > (v.hail || 8.5) + 1) v.rearm = true; if (v.handle.p < 0.9) continue; if (v.dist < reach(v) && (!near || v.dist < near.dist)) near = v; if (!v.ask && !v.greeted && v.rearm !== false && v.dist < (v.hail || 8.5) && (!hailed || v.dist < hailed.dist)) hailed = v; }
 
     if (hook && !cards) {
       let watch = null;

@@ -81,7 +81,7 @@ export function createCaper(X) {
     const inLine = (ox, oz) => { const dx = ox - x, dz = oz - z, d = Math.hypot(dx, dz); return d < 5 || (d < r && Math.abs(wrap(Math.atan2(dx, dz) - yaw)) < cone); };
     for (const p of peds) if (p.live && p.rise > 0.8 && p.mode !== 'hide' && p.mode !== 'up' && inLine(p.x, p.z)) { n++; p.mode = 'up'; p.t = 0.7; p.from = [x, z]; }
     for (const v of people) {
-      if (v.handle.p < 0.9 || v.handle.group.visible === false || v.id === 'officer' || !inLine(v.at[0], v.at[1])) continue;
+      if (v.handle.p < 0.9 || v.handle.group.visible === false || !inLine(v.at[0], v.at[1])) continue;
       n++; v.upT = 2.6;
       if (v.gun && S.t - (v.barkAt ?? -99) > 20 && X.talk.bark(v, v.gun)) { v.barkAt = S.t; v.upT = 3.6; }
     }
@@ -247,7 +247,7 @@ export function createCaper(X) {
         if (want && (p.decT -= dt) <= 0) { p.decT = 0.6; if (ah > 12 && backCost(p, tg) < ah - 10 && dE > 9) { flip(p); p.v = 0; } }
         if (p.spin < 0) {
           const vmax = !want ? 9.5 : S.stars >= 2 ? 10.4 : 8.2, [gap] = gapAhead(p, p);
-          let wantV = !want ? vmax : ah < 7 || dE < 7.5 ? 0 : Math.min(vmax, (Math.min(ah, dE + 8) - 5) * 1.6 + 1.5);
+          let wantV = !want ? vmax : ah < 4.5 || dE < 5 ? 0 : Math.min(vmax, (Math.min(ah, dE + 8) - 3.5) * 1.6 + 1.5);
           wantV = gap < 2.5 ? 0 : Math.min(wantV, (gap - 2.5) * 1.4 + 1);
           p.v += clamp(wantV - p.v, -16 * dt, 7 * dt);
           if (advance(p, p.v * dt, (opts) => (want ? opts.reduce((a, b) => (optCost(b, tg) < optCost(a, tg) ? b : a)) : opts[Math.floor(rnd() * opts.length)])) === 'end') { flip(p); p.v = 0; }
@@ -262,9 +262,9 @@ export function createCaper(X) {
     });
     SFX.siren(level);
     if (S.stars > 0 && !S.bust) {
-      const slow = !c.on || Math.abs(c.v) < 2.6, reach = S.stars >= 2 ? 15 : 9.5;
+      const slow = !c.on || Math.abs(c.v) < 2.6, reach = 7;
       if (near < reach && slow && !hidden && !X.talk.busy()) S.bustT += dt; else S.bustT = Math.max(0, S.bustT - dt * 0.7);
-      if (S.bustT > 1.5) bust();
+      if (S.bustT > 1.8) bust();
       if (near > 42 || hidden) S.calm += dt * (onPier && (!c.on || Math.abs(c.v) < 1) ? 2.4 : 1); else if (near > reach + 1.5) S.calm += dt * 0.5; else S.calm = Math.max(0, S.calm - dt * 2);
       if (S.calm > 12) { S.stars--; S.calm = 9.4; SFX.flap({ size: 0.5, up: false }); }
     } else S.bustT = 0;
@@ -272,15 +272,9 @@ export function createCaper(X) {
   const big = { el: null, cv: null, bits: null, wipe: null };
   function showBig(kind) {
     if (!big.el) return;
-    const cv = big.cv, g = cv.getContext('2d');
-    if (kind === 'job') drawWordmark(cv, X.sheet(), [['JOB', C.pink], ['DONE', C.turq]]);
-    else {
-      g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, cv.width, cv.height); g.lineCap = 'round';
-      const cx = cv.width / 2, cy = cv.height / 2 + 30;
-      for (const [w, col, dy] of [[70, 'rgba(20,10,40,0.3)', 16], [60, C.navy, 0], [34, '#c9ced8', -4]]) { g.strokeStyle = col; g.fillStyle = col; g.lineWidth = w; for (const sx of [-1, 1]) { g.beginPath(); g.arc(cx + sx * 270, cy + dy, 140, 0, 7); g.stroke(); g.beginPath(); g.roundRect(cx + sx * 270 - 62 - w / 4, cy + dy - 205 - w / 4, 124 + w / 2, 80 + w / 2, 18); g.fill(); } g.lineWidth = w * 0.45; for (const lx of [-76, 0, 76]) { g.beginPath(); g.ellipse(cx + lx, cy + dy - 150 + Math.abs(lx) * 0.3, 44, 24, lx * 0.006, 0, 7); g.stroke(); } }
-      g.fillStyle = C.navy; for (const sx of [-1, 1]) { g.beginPath(); g.arc(cx + sx * 270, cy - 172, 13, 0, 7); g.fill(); g.fillRect(cx + sx * 270 - 5, cy - 172, 10, 26); }
-    }
-    S.big = kind; S.bigT = kind === 'job' ? 2.6 : 1.15; big.el.classList.add('on'); SFX.flap({ size: 1, up: true });
+    const cv = big.cv;
+    drawWordmark(cv,X.sheet(), kind === 'job' ? [['JOB', C.pink], ['DONE', C.turq]] : [['SCRAPPED', C.coral]]);
+    S.big = kind; S.bigT = kind === 'job' ? 2.6 : 1.9; big.el.classList.add('on'); SFX.flap({ size: 1, up: true });
   }
   function confetti() {
     if (!big.bits) return;
@@ -290,21 +284,19 @@ export function createCaper(X) {
   }
   function bust() {
     if (S.bust || DEMO) return;
-    S.bust = { t: 0, stage: 0, opened: false }; S.busts++; S.bustT = 0; KEYS.clear(); hook.steer(null); X.talk.close(); toggleGun(false);
-    big.wipe?.classList.remove('out'); big.wipe?.classList.add('on'); SFX.thump(); showBig('cuffs');
+    S.bust = { t: 0, stage: 0 }; S.busts++; S.bustT = 0; KEYS.clear(); hook.steer(null); X.talk.close(); toggleGun(false);
+    big.wipe?.classList.remove('out'); big.wipe?.classList.add('on'); SFX.thump(); showBig('scrapped');
   }
   function bustStep(dt) {
     const b = S.bust; if (!b) return; b.t += dt;
-    const cop = people.find((v) => v.id === 'officer'), c = conv();
+    const c = conv();
     if (b.stage === 0 && b.t > 0.6) {
       b.stage = 1; if (c.on) { c.on = false; c.v = 0; SFX.setIdle(false); }
       hook.place(HERO_AT[0], HERO_AT[1]); X.heroHandle.group.position.y = 0.02; X.heroHandle.group.rotation.y = 0;
-      S.stars = 0; S.calm = 0; S.gun = false; S.loud = false; S.gunBackT = 20; S.drawn = false; for (const p of police) { p.on = false; p.node.visible = false; }
-      if (cop) { cop.handle.group.visible = true; cop.handle.reset(1); cop.handle.up = true; }
+      S.stars = 0; S.calm = 0; S.drawn = false; for (const p of police) { p.on = false; p.node.visible = false; }
     }
-    if (b.stage === 1 && b.t > 1.05) { b.stage = 2; big.wipe?.classList.add('out'); if (cop) b.opened = X.talk.open(cop, true); }
-    if (b.stage === 2 && b.t > 1.9 && !X.talk.busy()) { b.stage = 3; b.t = 0; if (big.wipe) { big.wipe.style.transition = 'none'; big.wipe.classList.remove('on', 'out'); void big.wipe.offsetWidth; big.wipe.style.transition = ''; } if (cop) cop.handle.set(0, 0); }
-    if (b.stage === 3 && b.t > 0.9) { if (cop) { cop.handle.group.visible = false; cop.handle.reset(0); } S.bust = null; }
+    if (b.stage === 1 && b.t > 2.1) { b.stage = 2; big.wipe?.classList.add('out'); }
+    if (b.stage === 2 && b.t > 2.8) { if (big.wipe) { big.wipe.style.transition = 'none'; big.wipe.classList.remove('on', 'out'); void big.wipe.offsetWidth; big.wipe.style.transition = ''; } S.bust = null; }
   }
 
   function bumpCar(c, nx, nz, depth, hard, key) {
@@ -648,7 +640,7 @@ export function createCaper(X) {
     placeTraffic();
     for (const p of police) { p.on = false; p.node.visible = false; }
     for (const p of PROPS) p.down = 0;
-    for (const v of people) { v.upT = 0; v.barkAt = -99; if (v.id === 'officer') { v.handle.reset(0); v.handle.group.visible = false; } }
+    for (const v of people) { v.upT = 0; v.barkAt = -99; }
     Object.assign(S, { cash: 20, stars: 0, calm: 0, gun: true, loud: false, shades: false, station: 0, radioT: 0, inside: false, view: 0, bust: null, bustT: 0, menace: [], fireStar: -9, job: 0, bigT: 0, big: null, boxT: 0, hud: '', hintT: 0, hintDone: false, gunBackT: 0 });
     toggleGun(false); store.open = 0; store.v = 0; for (const it of store.items) { it.up = false; it.h.reset(0); }
     big.el?.classList.remove('on'); big.wipe?.classList.remove('on', 'out'); hud.radio?.classList.remove('on'); hud.hint?.classList.remove('on');
