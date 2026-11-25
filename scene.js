@@ -5,10 +5,11 @@ import { createHarness, MOODS } from './harness.js';
 import { makeBigDoll } from './figures.js';
 import { createTalk } from './talk.js';
 import { createSound } from './sound.js';
-import { foldOut, laneCheck, flight, pageEdges } from './world.js';
+import { foldOut, laneCheck, flight, pageEdges4 } from './world.js';
 import { GLYPHS, WORDS, SLANT, strokeGlyph, drawWordmark } from './wordmark.js';
 import PEOPLE from './people.js';
 import { createCaper } from './caper.js';
+import { boardZ, roadZ, MX, PAGE, shoreZ, S2, S3, XS, STORE, ALLEY, COURT, PLAZA, LOT, BUILDINGS, inBuilding, nearest } from './city.js';
 
 const C = {
   sea: '#2f9aa0', seaDeep: '#1f7a8c', seaLight: '#63c7c0', foam: '#fff1dc', sand: '#f4b6a2', sandLight: '#fbd3bd',
@@ -17,17 +18,10 @@ const C = {
   palm: '#2f8f7f', palmB: '#49ab8c', trunk: '#a8704e', neon: '#ffd98a',
 };
 const s01 = (t) => { t = Math.min(1, Math.max(0, t)); return t * t * (3 - 2 * t); };
-const bend = (x) => (x > 105 ? 11 * Math.sin((x - 105) * 0.028) * s01((x - 105) / 45) : 0);
-const baseZ = (x) => 0.5 + 2.6 * Math.sin(x * 0.075) + 1.4 * Math.sin(x * 0.17 + 1);
-const boardZ = (x) => baseZ(x) + bend(x);
-const roadZ = (x) => baseZ(x) * 0.35 - 13.6 + bend(x);
-const MX = 372, PAGE = { x0: -142, x1: 412 };
-const shoreZ = (x) => baseZ(x) * 0.6 + 14.5 + 1.2 * Math.sin(x * 0.11) + bend(x) - 8.5 * s01((x - (MX - 34)) / 16);
 const HERO_AT = [0, boardZ(0) + 2.3];
 const BEA_X = 63, PIER = { x: MX, d: 19, w: 7.2, h: 0.46 }; PIER.z = boardZ(MX) + 3.3 + PIER.d;
-const STORE = { x: 36, z: -23.4, w: 15, h: 6.2, d: 9 };
 const SPOT = {
-  marisol: { at: [5.9, boardZ(5.9) - 2.6], spot: [-1.5, boardZ(-1.5) + 1.2], hail: 9, yaw: -0.5 },
+  marisol: { at: [-19, boardZ(-19) - 2.6], spot: [-12.4, boardZ(-12.4) + 1.2], hail: 9, yaw: 0.35 },
   bea: { at: [BEA_X - 2.2, roadZ(BEA_X) + 6.6], spot: [BEA_X - 8.2, roadZ(BEA_X) + 8.2], hail: 9.5, yaw: 0.2 },
   lenny: { at: [PIER.x + 2.3, PIER.z - 6.5], spot: [PIER.x - 2.7, PIER.z - 4.4], hail: 8.5, yaw: 0, deck: [2.3, -6.5], lift: PIER.h + 0.18, pull: true },
   otis: { at: [STORE.x + 3.5, STORE.z - 7.6], spot: [STORE.x - 2.8, STORE.z - 3.4], hail: 7.7, yaw: -0.15 },
@@ -38,8 +32,8 @@ const H = createHarness({
   ground: C.sea, stock: '#fbf2e6', play: true, mood: 'dusk',
   moods: { ...MOODS, dusk: { ...MOODS.dusk, ki: 3.3, fi: 1.5, leak: '#7a4a9a', post: { ...MOODS.dusk.post, exposure: 1.02, haze: '#f0a48c', hazeStart: 60, hazeEnd: 190, hazeAmount: 0.34, vignette: 0.1, vignetteColor: '#201040', shadowTint: '#2a1a5a' } } },
   view: { pitch: 37, dist: 60, target: [HERO_AT[0], 1.5, HERO_AT[1] - 12.5], follow: [0, -13.6] },
-  bounds: { x0: -152, x1: 422, z0: -74, z1: 76 },
-  walkArea: { x0: PAGE.x0 + 1.5, x1: PAGE.x1 - 1.5, z0: -42, z1: 40 },
+  bounds: { x0: -140, x1: 140, z0: -172, z1: 76 },
+  walkArea: { x0: PAGE.x0 + 1.5, x1: PAGE.x1 - 1.5, z0: PAGE.z0 + 1.5, z1: 40 },
   subject: HERO_AT,
   light: { distance: 130, shadowExtent: 60 },
   lens: { aoTint: '#4a2c6a', greenDesat: 0.05, saturation: 1.04, focusBand: 0.56, ramp: 0.4, depthWeight: 0.5 },
@@ -54,38 +48,68 @@ const turn = P2.rng(99);
 const popup = (pts, paint, o = {}) => H.popup(pts, paint, { ...o, yaw: o.yaw ?? (o.node ? 0 : o.cross ? (turn() < 0.5 ? -1 : 1) * (0.3 + turn() * 0.25) : (turn() - 0.5) * 0.36) });
 const SOLIDS = [];
 const solid = (x, z, r) => { SOLIDS.push([x, z, r]); walk.solid(x, z, r); };
-const xs = []; for (let x = -146; x <= 416; x += 6) xs.push(x);
+const xs = []; for (let x = -131; x <= 131; x += 6) xs.push(x);
 const LANE = P2.pathLine(xs.map((x) => [x, boardZ(x)]));
 const band = (fz, x0, x1, step = 2) => { const p = []; for (let x = x0; x <= x1; x += step) p.push([x, fz(x)]); return p; };
-const strip = (f0, f1, x0 = -152, x1 = 422) => [...band(f0, x0, x1), ...band(f1, x0, x1).reverse()];
+const strip = (f0, f1, x0 = -140, x1 = 140) => [...band(f0, x0, x1), ...band(f1, x0, x1).reverse()];
 
 H.printGround(({ g, ppu, X, Z, rnd: gr, washes, torn, line }) => {
   washes([C.seaDeep, C.seaLight, C.sea, C.seaDeep]);
-  for (let k = 0; k < 5200; k++) { const x = -152 + gr() * 574, z = shoreZ(x) + 1 + gr() * 58, l = (0.6 + gr() * 1.6) * ppu; g.strokeStyle = P2.rgba(gr() < 0.7 ? C.foam : C.seaDeep, 0.5); g.lineWidth = 0.12 * ppu; g.beginPath(); g.moveTo(X(x) - l / 2, Z(z)); g.quadraticCurveTo(X(x), Z(z) - 0.16 * ppu, X(x) + l / 2, Z(z)); g.stroke(); }
+  for (let k = 0; k < 2600; k++) { const x = -140 + gr() * 280, z = shoreZ(x) + 1 + gr() * 58, l = (0.6 + gr() * 1.6) * ppu; g.strokeStyle = P2.rgba(gr() < 0.7 ? C.foam : C.seaDeep, 0.5); g.lineWidth = 0.12 * ppu; g.beginPath(); g.moveTo(X(x) - l / 2, Z(z)); g.quadraticCurveTo(X(x), Z(z) - 0.16 * ppu, X(x) + l / 2, Z(z)); g.stroke(); }
   torn(strip((x) => shoreZ(x) + 1.1, (x) => boardZ(x)), C.foam, 'rgba(255,250,240,0.9)');
   torn(strip((x) => shoreZ(x), (x) => boardZ(x)), C.sand, 'rgba(255,240,225,0.7)');
   torn(strip((x) => shoreZ(x) - 3.2, (x) => boardZ(x)), C.sandLight, 'rgba(255,240,225,0)');
-  for (let k = 0; k < 80; k++) { const x = -140 + gr() * 480, z = boardZ(x) + 5.5 + gr() * (shoreZ(x) - boardZ(x) - 8), a = gr() * 0.8 - 0.4; g.save(); g.translate(X(x), Z(z)); g.rotate(a); g.fillStyle = [C.turq, C.pink, C.orange, C.lilac][k % 4]; g.fillRect(-1.1 * ppu, -0.55 * ppu, 2.2 * ppu, 1.1 * ppu); g.fillStyle = C.cream; for (let q = -2; q <= 2; q += 2) g.fillRect(q * 0.4 * ppu - 0.12 * ppu, -0.55 * ppu, 0.24 * ppu, 1.1 * ppu); g.restore(); }
-  torn(strip((x) => boardZ(x) - 3.4, () => -74), C.pave, 'rgba(255,245,235,0.5)');
-  for (let gx = -150; gx < 420; gx += 3.2) for (let gz = -72; gz < roadZ(gx) - 5.5; gz += 3.2) { if (gr() < 0.5) continue; g.fillStyle = P2.rgba(gr() < 0.5 ? C.paveDark : '#f6e2dc', 0.5); g.fillRect(X(gx) + 2, Z(gz) + 2, 3.2 * ppu - 4, 3.2 * ppu - 4); }
+  for (let k = 0; k < 40; k++) { const x = -120 + gr() * 186, z = boardZ(x) + 5.5 + gr() * (shoreZ(x) - boardZ(x) - 8), a = gr() * 0.8 - 0.4; g.save(); g.translate(X(x), Z(z)); g.rotate(a); g.fillStyle = [C.turq, C.pink, C.orange, C.lilac][k % 4]; g.fillRect(-1.1 * ppu, -0.55 * ppu, 2.2 * ppu, 1.1 * ppu); g.fillStyle = C.cream; for (let q = -2; q <= 2; q += 2) g.fillRect(q * 0.4 * ppu - 0.12 * ppu, -0.55 * ppu, 0.24 * ppu, 1.1 * ppu); g.restore(); }
+  torn(strip((x) => boardZ(x) - 3.4, () => -172), C.pave, 'rgba(255,245,235,0.5)');
+  for (let gx = -140; gx < 140; gx += 3.2) for (let gz = -172; gz < roadZ(gx) - 5.5; gz += 3.2) { if (gr() < 0.5) continue; g.fillStyle = P2.rgba(gr() < 0.5 ? C.paveDark : '#f6e2dc', 0.5); g.fillRect(X(gx) + 2, Z(gz) + 2, 3.2 * ppu - 4, 3.2 * ppu - 4); }
+  const box = (x0, z0, x1, z1, col, fringe = 'rgba(255,250,240,0.55)') => torn([[x0, z0], [x1, z0], [x1, z1], [x0, z1]], col, fringe);
+  const grass = (x0, z0, x1, z1, n) => { for (let k = 0; k < n; k++) { const x = x0 + gr() * (x1 - x0), z = z0 + gr() * (z1 - z0); g.strokeStyle = P2.rgba(gr() < 0.5 ? '#6faf8c' : '#b5dcbc', 0.8); g.lineWidth = 1.6; g.beginPath(); g.moveTo(X(x), Z(z)); g.lineTo(X(x) + (gr() - 0.5) * 3, Z(z) - 4 - gr() * 4); g.stroke(); } };
+  const BLK = [[-140, XS[0] - 5.5], [XS[0] + 5.5, XS[1] - 5.5], [XS[1] + 5.5, XS[2] - 5.5], [XS[2] + 5.5, XS[3] - 5.5], [XS[3] + 5.5, 140]];
+  for (const [a, b] of BLK) for (const [z0, z1] of [[S2 + 5.6, -33.2], [S3 + 5.6, S2 - 16.2], [-172, S3 - 5.6]]) {
+    const parts = z1 === S2 - 16.2 && a < ALLEY.x && b > ALLEY.x ? [[a, ALLEY.x - ALLEY.w / 2], [ALLEY.x + ALLEY.w / 2, b]] : [[a, b]];
+    for (const [p, q] of parts) { box(p + 0.6, z0, q - 0.6, z1, C.lawn, 'rgba(240,250,235,0.6)'); grass(p + 1, z0 + 1, q - 1, z1 - 1, Math.round((q - p) * (z1 - z0) * 0.1)); }
+  }
   torn(strip((x) => boardZ(x) - 3.2, (x) => roadZ(x) + 4.8), C.lawn, 'rgba(240,250,235,0.6)');
-  for (let k = 0; k < 4400; k++) { const x = -152 + gr() * 574, z = roadZ(x) + 5.2 + gr() * (boardZ(x) - 3.6 - roadZ(x) - 5.2); g.strokeStyle = P2.rgba(gr() < 0.5 ? '#6faf8c' : '#b5dcbc', 0.8); g.lineWidth = 1.6; g.beginPath(); g.moveTo(X(x), Z(z)); g.lineTo(X(x) + (gr() - 0.5) * 3, Z(z) - 4 - gr() * 4); g.stroke(); }
+  for (let k = 0; k < 2200; k++) { const x = -140 + gr() * 280, z = roadZ(x) + 5.2 + gr() * (boardZ(x) - 3.6 - roadZ(x) - 5.2); g.strokeStyle = P2.rgba(gr() < 0.5 ? '#6faf8c' : '#b5dcbc', 0.8); g.lineWidth = 1.6; g.beginPath(); g.moveTo(X(x), Z(z)); g.lineTo(X(x) + (gr() - 0.5) * 3, Z(z) - 4 - gr() * 4); g.stroke(); }
+  { const { x, z, w, d } = COURT; box(x - w / 2 - 1.2, z - d / 2 - 1.2, x + w / 2 + 1.2, z + d / 2 + 1.2, '#e9c9b0'); g.fillStyle = '#2fa39c'; g.fillRect(X(x - w / 2), Z(z - d / 2), w * ppu, d * ppu); g.fillStyle = '#f08a6a'; for (const sd of [-1, 1]) g.fillRect(X(sd > 0 ? x + w / 2 - 5 : x - w / 2), Z(z - 2.4), 5 * ppu, 4.8 * ppu);
+    g.strokeStyle = C.cream; g.lineWidth = 0.22 * ppu; g.strokeRect(X(x - w / 2), Z(z - d / 2), w * ppu, d * ppu); g.beginPath(); g.moveTo(X(x), Z(z - d / 2)); g.lineTo(X(x), Z(z + d / 2)); g.stroke(); g.beginPath(); g.arc(X(x), Z(z), 2 * ppu, 0, 7); g.stroke();
+    for (const sd of [-1, 1]) { g.beginPath(); g.arc(X(x + sd * (w / 2 - 1)), Z(z), 5.6 * ppu, sd > 0 ? Math.PI * 0.5 : -Math.PI * 0.5, sd > 0 ? Math.PI * 1.5 : Math.PI * 0.5); g.stroke(); } }
+  { const { x, z, r } = PLAZA; box(x - 1.7, z + r, x + 1.7, S3 - 5, '#f6d9c2'); g.fillStyle = '#f6d9c2'; g.beginPath(); g.arc(X(x), Z(z), (r + 1.4) * ppu, 0, 7); g.fill();
+    for (let k = 0; k < 4; k++) { g.strokeStyle = P2.rgba(k % 2 ? C.pink : C.cream, 0.85); g.lineWidth = 0.5 * ppu; g.beginPath(); g.arc(X(x), Z(z), (r - k * 1.5) * ppu, 0, 7); g.stroke(); }
+    g.fillStyle = '#d9bca4'; g.beginPath(); g.arc(X(x), Z(z), 3.7 * ppu, 0, 7); g.fill(); g.fillStyle = C.seaLight; g.beginPath(); g.arc(X(x), Z(z), 3.2 * ppu, 0, 7); g.fill(); }
+  box(LOT.x0, LOT.z0, LOT.x1, S3 - 4.5, '#9a8fb8', 'rgba(255,250,240,0.4)');
+  g.fillStyle = P2.rgba(C.cream, 0.85); for (let k = 0; k < 5; k++) g.fillRect(X(40), Z(LOT.z0 + 3 + k * 4.5), 20 * ppu, 0.18 * ppu);
+  box(ALLEY.x - ALLEY.w / 2, ALLEY.z1, ALLEY.x + ALLEY.w / 2, ALLEY.z0, '#cdb6c4', 'rgba(255,250,240,0.4)');
+  for (let k = 0; k < 260; k++) { g.fillStyle = P2.rgba(gr() < 0.5 ? '#b49cb0' : '#e2d0da', 0.7); g.beginPath(); g.ellipse(X(ALLEY.x - 2.7 + gr() * 5.4), Z(ALLEY.z1 + gr() * (ALLEY.z0 - ALLEY.z1)), 0.32 * ppu, 0.22 * ppu, 0, 0, 7); g.fill(); }
   torn(strip((x) => roadZ(x) + 5.0, (x) => roadZ(x) - 5.0), C.cream, 'rgba(255,250,240,0.6)');
+  for (const z of [S2, S3]) box(-140, z - 5, 140, z + 5, C.cream, 'rgba(255,250,240,0.6)');
+  for (const x of XS) box(x - 5, S3 - 5, x + 5, roadZ(x) - 3, C.cream, 'rgba(255,250,240,0.6)');
   torn(strip((x) => roadZ(x) + 4.5, (x) => roadZ(x) - 4.5), C.road, 'rgba(255,250,240,0)');
-  g.setLineDash([1.8 * ppu, 1.5 * ppu]); line(band((x) => roadZ(x) - 1.3, -152, 422), 0.22, C.roadLine); g.setLineDash([]);
-  for (let x = -146; x < 418; x += 11) { g.fillStyle = P2.rgba(C.cream, 0.5); g.fillRect(X(x), Z(roadZ(x) + 3.1), 0.2 * ppu, 1.3 * ppu); }
+  for (const z of [S2, S3]) box(-140, z - 4.5, 140, z + 4.5, C.road, 'rgba(255,250,240,0)');
+  for (const x of XS) box(x - 4.5, S3 - 4.5, x + 4.5, roadZ(x) - 3.5, C.road, 'rgba(255,250,240,0)');
+  g.setLineDash([1.8 * ppu, 1.5 * ppu]); line(band((x) => roadZ(x) - 1.3, -140, 140), 0.22, C.roadLine);
+  const cuts = [-146, ...XS, 146];
+  for (const z of [S2, S3]) for (let k = 0; k < cuts.length - 1; k++) line([[cuts[k] + 6, z], [cuts[k + 1] - 6, z]], 0.22, C.roadLine);
+  for (const x of XS) { line([[x, S3 + 6], [x, S2 - 6]], 0.22, C.roadLine); line([[x, S2 + 6], [x, roadZ(x) - 7.5]], 0.22, C.roadLine); }
+  g.setLineDash([]);
+  for (let x = -136; x < 138; x += 11) { if (XS.some((q) => Math.abs(q - x) < 6)) continue; g.fillStyle = P2.rgba(C.cream, 0.5); g.fillRect(X(x), Z(roadZ(x) + 3.1), 0.2 * ppu, 1.3 * ppu); }
+  g.fillStyle = P2.rgba(C.cream, 0.88);
+  const zNS = (x, z) => { for (let k = -3.5; k <= 3.6; k += 1.0) g.fillRect(X(x + k - 0.25), Z(z - 0.9), 0.5 * ppu, 1.8 * ppu); };
+  const zEW = (x, z) => { for (let k = -3.5; k <= 3.6; k += 1.0) g.fillRect(X(x - 0.9), Z(z + k - 0.25), 1.8 * ppu, 0.5 * ppu); };
+  for (const x of XS) { zNS(x, S2 - 6.6); zNS(x, S2 + 6.6); zNS(x, S3 + 6.6); zNS(x, roadZ(x) - 6.6); for (const z of [S2, S3]) for (const sd of [-1, 1]) zEW(x + sd * 6.6, z); }
   torn(strip((x) => boardZ(x) + 3.5, (x) => boardZ(x) - 3.5), C.board, 'rgba(255,240,220,0.6)');
   for (let i = 1; i < LANE.pts.length - 1; i += 2) { const [x, z] = LANE.pts[i], tx = LANE.pts[i + 1][0] - LANE.pts[i - 1][0], tz = LANE.pts[i + 1][1] - LANE.pts[i - 1][1], n = Math.hypot(tx, tz); g.strokeStyle = P2.rgba(i % 6 ? C.boardDark : '#f0c89c', 0.55); g.lineWidth = 0.09 * ppu; g.beginPath(); g.moveTo(X(x - tz / n * 3.3), Z(z + tx / n * 3.3)); g.lineTo(X(x + tz / n * 3.3), Z(z - tx / n * 3.3)); g.stroke(); }
   { g.fillStyle = P2.rgba('#ffcf9a', 0.28); g.beginPath(); g.moveTo(X(57), Z(74)); g.lineTo(X(83), Z(74)); g.lineTo(X(76), Z(shoreZ(70) + 30)); g.lineTo(X(64), Z(shoreZ(70) + 30)); g.closePath(); g.fill(); }
-  for (const s of [-1, 1]) line(band((x) => boardZ(x) + s * 3.3, -152, 422), 0.16, P2.rgba(C.boardDark, 0.7));
+  for (const s of [-1, 1]) line(band((x) => boardZ(x) + s * 3.3, -140, 140), 0.16, P2.rgba(C.boardDark, 0.7));
 });
-
 const arc = (cx, cy, rx, ry, a0, a1, n = 14) => Array.from({ length: n + 1 }, (_, i) => { const a = a0 + (a1 - a0) * i / n; return [cx + Math.cos(a) * rx, cy + Math.sin(a) * ry]; });
 const ICON = {
   flamingo: (g) => { g.beginPath(); g.ellipse(0.1, 0.1, 0.55, 0.36, 0, 0, 7); g.fill(); g.lineWidth = 0.16; g.lineCap = 'round'; g.beginPath(); g.moveTo(-0.3, 0.3); g.quadraticCurveTo(-0.9, 0.8, -0.45, 1.15); g.stroke(); g.beginPath(); g.moveTo(0.1, -0.2); g.lineTo(0.1, -0.9); g.stroke(); },
   palm: (g) => { g.lineWidth = 0.16; g.lineCap = 'round'; g.beginPath(); g.moveTo(0, -0.9); g.quadraticCurveTo(0.2, 0, 0, 0.5); g.stroke(); for (const a of [0.3, 1.0, 1.7, 2.4, 3.0]) { g.beginPath(); g.moveTo(0, 0.5); g.quadraticCurveTo(Math.cos(a) * 0.6, 0.5 + Math.sin(a) * 0.7, Math.cos(a) * 1.0, 0.45 + Math.sin(a) * 0.35); g.stroke(); } },
   sun: (g) => { g.beginPath(); g.arc(0, -0.3, 0.6, 0, Math.PI); g.fill(); g.lineWidth = 0.12; for (let k = 0; k < 5; k++) { const a = 0.3 + k * 0.63; g.beginPath(); g.moveTo(Math.cos(a) * 0.8, -0.3 + Math.sin(a) * 0.8); g.lineTo(Math.cos(a) * 1.15, -0.3 + Math.sin(a) * 1.15); g.stroke(); } },
   star: (g) => { g.beginPath(); for (let k = 0; k < 10; k++) { const a = k * Math.PI / 5 + Math.PI / 2, r = k % 2 ? 0.42 : 1.0; g.lineTo(Math.cos(a) * r, Math.sin(a) * r); } g.closePath(); g.fill(); },
+  note: (g) => { g.beginPath(); g.ellipse(-0.35, -0.55, 0.32, 0.24, -0.4, 0, 7); g.fill(); g.lineWidth = 0.14; g.beginPath(); g.moveTo(-0.07, -0.5); g.lineTo(-0.07, 0.75); g.lineTo(0.55, 0.45); g.stroke(); },
+  cup: (g) => { g.beginPath(); g.moveTo(-0.6, 0.3); g.lineTo(0.5, 0.3); g.lineTo(0.38, -0.6); g.lineTo(-0.48, -0.6); g.closePath(); g.fill(); g.lineWidth = 0.13; g.beginPath(); g.arc(0.55, -0.1, 0.25, -1.4, 1.4); g.stroke(); for (const sx of [-0.2, 0.15]) { g.beginPath(); g.moveTo(sx, 0.55); g.quadraticCurveTo(sx + 0.2, 0.8, sx + 0.1, 1.0); g.stroke(); } },
   glass: (g) => { g.beginPath(); g.moveTo(-0.7, 0.8); g.lineTo(0.7, 0.8); g.lineTo(0, 0); g.closePath(); g.fill(); g.lineWidth = 0.13; g.beginPath(); g.moveTo(0, 0); g.lineTo(0, -0.8); g.moveTo(-0.4, -0.8); g.lineTo(0.4, -0.8); g.stroke(); },
 };
 const LIFE = { flowers: [] };
@@ -93,8 +117,49 @@ const LIFE = { flowers: [] };
 const SIGNS = [];
 let _halo = null;
 const haloTex = () => { if (_halo) return _halo; const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d'), gr = g.createRadialGradient(64, 64, 4, 64, 64, 64); gr.addColorStop(0, 'rgba(255,255,255,0.9)'); gr.addColorStop(0.4, 'rgba(255,255,255,0.3)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, 128, 128); _halo = new THREE.CanvasTexture(c); return _halo; };
+const clubFront = (w, h, wall, accent) => (P) => {
+  P.gradient(P2.shade(wall, 0.1), P2.shade(wall, -0.12), 0.4); P.felt(0.6);
+  const tube = (g) => { g.lineWidth = 0.2; g.strokeStyle = g.fillStyle; g.beginPath(); g.roundRect(-w / 2 + 0.6, 3.5, w - 1.2, h - 4.2, 0.7); g.stroke(); for (let k = 0; k < 3; k++) { g.beginPath(); g.moveTo(-w / 2 + 1.4, 4.2 + k * 0.6); g.lineTo(-w / 2 + 3.4, 4.2 + k * 0.6); g.stroke(); } };
+  P.layer(tube, accent, { lip: 0, depth: 0.4 }); P.glow(tube);
+  const port = (g) => { for (const px of [w / 2 - 2.0, w / 2 - 4.2]) if (px > 1.4) { g.beginPath(); g.arc(px, 3.5 + (h - 4.2) / 2, Math.min(0.85, (h - 4.6) / 2.4), 0, 7); g.fill(); } };
+  P.layer(port, C.neon, { lip: 0, depth: 0.4 }); P.glow((g) => { g.globalAlpha = 0.8; port(g); });
+  P.layer((g) => g.fillRect(-w / 2, 2.7, w, 0.6), P2.shade(accent, -0.35), { depth: 0.7 });
+  const bulbs = (g) => { for (let bx = -w / 2 + 0.5; bx < w / 2 - 0.3; bx += 0.6) { g.beginPath(); g.arc(bx, 3.0, 0.13, 0, 7); g.fill(); } };
+  P.layer(bulbs, C.neon, { lip: 0, depth: 0.3 }); P.glow(bulbs);
+  P.layer((g) => { g.beginPath(); g.roundRect(-1.1, 0, 2.2, 2.5, [1.1, 1.1, 0, 0]); g.fill(); }, '#1a1430', { depth: 0.7 });
+  const edge = (g) => { g.lineWidth = 0.12; g.strokeStyle = g.fillStyle; g.beginPath(); g.roundRect(-1.1, 0, 2.2, 2.5, [1.1, 1.1, 0, 0]); g.stroke(); };
+  P.layer(edge, accent, { lip: 0, depth: 0.3 }); P.glow(edge);
+  P.layer((g) => { for (const sd of [-1, 1]) g.fillRect(sd * 2.0 - 0.08, 0, 0.16, 0.9); g.fillRect(-2.0, 0.7, 4.0, 0.08); }, C.gold, { depth: 0.3 });
+  P.innerShade('#0c0820', { alpha: 0.35, blurPx: 12 });
+};
+const dinerFront = (w, h, wall, accent) => (P) => {
+  P.gradient('#fdf6ea', '#eedcc2', 0.4); P.felt(0.6);
+  P.layer((g) => { g.fillRect(-w / 2, 0, w, 0.8); g.fillRect(-w / 2, h - 1.3, w, 0.7); }, accent, { depth: 0.7 });
+  P.layer((g) => { for (let k = 0; k < Math.ceil(w / 0.5); k++) if (k % 2) g.fillRect(-w / 2 + k * 0.5, 0.8, 0.5, 0.36); }, C.navy, { depth: 0.3 });
+  const pane = (g) => { g.beginPath(); g.roundRect(-w / 2 + 0.7, 1.45, w - 3.6, 2.1, 0.45); g.fill(); };
+  P.layer((g) => { g.beginPath(); g.roundRect(-w / 2 + 0.55, 1.3, w - 3.3, 2.4, 0.55); g.fill(); }, '#c9ced8', { depth: 0.5 });
+  P.layer(pane, C.neon, { lip: 0, shade: 0.5, depth: 0.4 }); P.glow((g) => { g.globalAlpha = 0.85; pane(g); });
+  P.layer((g) => { for (let sx = -w / 2 + 1.5; sx < w / 2 - 3.4; sx += 1.5) { g.beginPath(); g.arc(sx, 2.75, 0.3, 0, 7); g.fill(); g.fillRect(sx - 0.32, 1.45, 0.64, 1.0); } }, P2.shade(accent, -0.35), { depth: 0.3 });
+  P.layer((g) => { g.beginPath(); g.roundRect(w / 2 - 2.3, 0, 1.6, 2.7, [0.3, 0.3, 0, 0]); g.fill(); }, accent, { depth: 0.6 });
+  P.layer((g) => g.fillRect(w / 2 - 2.0, 1.4, 1.0, 1.0), C.neon, { lip: 0, depth: 0.3 });
+  P.innerShade(P2.shade(accent, -0.6), { alpha: 0.25, blurPx: 10 });
+};
+function house(b) {
+  const { x, z, w, d, h, i } = b, wall = ['#f6b7a6', '#bfe3d0', '#f8dca0', '#c8b6ec', '#fdf0d8'][i % 5], roofC = [C.coral, C.teal, '#8a6a9a', C.orange][i % 4];
+  const front = (P) => { P.gradient(P2.shade(wall, 0.06), P2.shade(wall, -0.1), 0.4); P.felt(0.7);
+    P.layer((g) => { g.beginPath(); g.roundRect(-0.8, 0, 1.6, 2.4, [0.8, 0.8, 0, 0]); g.fill(); }, roofC, { depth: 0.6 });
+    P.layer((g) => { for (const sd of [-1, 1]) g.fillRect(sd * (w / 4 + 0.3) - 1.1, 1.15, 2.2, 1.7); }, C.cream, { depth: 0.5 });
+    const win = (g) => { for (const sd of [-1, 1]) { g.beginPath(); g.roundRect(sd * (w / 4 + 0.3) - 0.8, 1.3, 1.6, 1.4, 0.2); g.fill(); } };
+    P.layer(win, C.neon, { lip: 0, depth: 0.4 }); P.glow((g) => { g.globalAlpha = 0.6; win(g); });
+    P.layer((g) => g.fillRect(-w / 2, 0, w, 0.35), P2.shade(wall, -0.25), { depth: 0.5 });
+    P.innerShade(P2.shade(wall, -0.6), { alpha: 0.3, blurPx: 10 }); };
+  const side = (P) => { P.gradient(P2.shade(wall, -0.04), P2.shade(wall, -0.18), 0.4); P.felt(0.7); };
+  const roof = (P) => { P.gradient(P2.shade(roofC, 0.1), P2.shade(roofC, -0.15), 0.3); P.felt(0.6); P.marks('hatch', { color: P2.shade(roofC, -0.35), alpha: 0.35, size: 0.4, units: true, angle: 0 }); };
+  const node = prismFold([[-w / 2, 0], [w / 2, 0], [w / 2, -d], [-w / 2, -d]], { h, roof: 'pyramid', roofH: 2.6, paper: H.paper, seed: 2400 + i * 17, thickness: 0.08, edgeWidth: 0.08, paints: { wall: [front, side, side, side], roof }, print: H.cardOpts(x, z, 1, null, 1.1) });
+  const hh = popup(null, null, { node, height: h + 2.6, x, z, level: true }); H.glowing(hh.group); return hh;
+}
 function hotel(x, o) {
-  const { w, h, d = 9, wall, accent, trim, icon, seed } = o, z = o.z ?? -23.4, floors = Math.max(2, Math.floor((h - 3.6) / 2.5)), print = H.cardOpts(x, z, 1, null, 1.1);
+  const { w, h, d = 9, wall, accent, trim, icon, seed, kind = 'hotel' } = o, z = o.z ?? -23.4, floors = Math.max(2, Math.floor((h - 3.6) / 2.5)), print = H.cardOpts(x, z, 1, null, 1.1);
   const front = (P) => {
     P.gradient(P2.shade(wall, 0.08), P2.shade(wall, -0.1), 0.4); P.felt(0.7);
     P.layer((g) => { g.fillRect(-w / 2 - 1, h - 0.7, w + 2, 2); for (let f = 1; f <= floors; f++) g.fillRect(-w / 2 - 1, 3.4 + f * 2.5 - 0.22, w + 2, 0.22); }, trim, { depth: 0.8 });
@@ -116,10 +181,10 @@ function hotel(x, o) {
   };
   const side = (P) => { P.gradient(P2.shade(wall, -0.04), P2.shade(wall, -0.2), 0.4); P.felt(0.7); P.layer((g) => g.fillRect(P.box.x0 - 1, h - 0.7, P.box.w + 2, 2), trim, { depth: 0.7 }); P.marks('window', { color: C.neon, alpha: 0.7, size: 1.3, units: true, lit: 0.5, dark: P2.shade(wall, -0.4), region: { ...P.box, y0: 3.6, y1: h - 1.2 } }); };
   const lid = (P) => { P.gradient(P2.shade(trim, 0.1), P2.shade(trim, -0.1), 0.3); P.felt(0.6); P.layer((g) => { g.beginPath(); g.roundRect(P.box.x0 + 1, P.box.y0 + 1, P.box.w - 2, P.box.h - 2, 0.6); g.fill(); }, P2.shade(wall, -0.25), { depth: 0.7 }); P.layer((g) => g.fillRect(P.box.x0 + 2, P.box.y0 + 2, 2.4, 1.8), C.cream, { depth: 0.6 }); };
-  const node = prismFold([[-w / 2, 0], [w / 2, 0], [w / 2, -d], [-w / 2, -d]], { h, roof: 'flat', paper: H.paper, seed, thickness: 0.08, edgeWidth: 0.08, paints: { wall: [front, side, side, side], roof: lid }, print });
+  const node = prismFold([[-w / 2, 0], [w / 2, 0], [w / 2, -d], [-w / 2, -d]], { h, roof: 'flat', paper: H.paper, seed, thickness: 0.08, edgeWidth: 0.08, paints: { wall: [kind === 'club' ? clubFront(w, h, wall, accent) : kind === 'diner' ? dinerFront(w, h, wall, accent) : front, side, side, side], roof: lid }, print });
   const crownPts = [[-w / 2, 0], [w / 2, 0], [w / 2, 0.8], [w / 2 - 2, 0.8], [w / 2 - 2, 1.6], [3.4, 1.6], [3.4, 2.5], [-3.4, 2.5], [-3.4, 1.6], [-w / 2 + 2, 1.6], [-w / 2 + 2, 0.8], [-w / 2, 0.8]];
   const crown = makeCard(crownPts, { paper: H.paper, thickness: 0.08, edgeWidth: 0.08, pxPerUnit: 30, seed: seed + 40, folds: ['bottom'], back: 'mirror', paint: (P) => { P.gradient(P2.shade(accent, 0.08), P2.shade(accent, -0.1), 0.3); P.felt(0.6); P.layer((g) => { g.fillRect(-w / 2, 0.55, w, 0.14); g.fillRect(-w / 2 + 2, 1.35, w - 4, 0.14); g.fillRect(-3.4, 2.25, 6.8, 0.14); }, C.cream, { depth: 0.5 }); } });
-  crown.position.set(0, 0, d / 2 - 0.2); node.userData.top?.add(crown);
+  crown.position.set(0, 0, d / 2 - 0.2); if (kind === 'hotel') node.userData.top?.add(crown);
   const signPts = [...arc(0, 2.3, 2.5, 2.5, 0, Math.PI, 18), [-2.5, 0], [2.5, 0]];
   const sign = makeCard(signPts, { paper: H.paper, thickness: 0.08, edgeWidth: 0.08, pxPerUnit: 34, seed: seed + 50, folds: ['bottom'], back: 'mirror', paint: (P) => {
     P.fill(C.navy); P.felt(0.5);
@@ -128,9 +193,9 @@ function hotel(x, o) {
     const ic = (g) => { g.save(); g.translate(0, 2.0); g.scale(1.25, 1.25); g.strokeStyle = g.fillStyle; ICON[icon](g); g.restore(); };
     P.layer(ic, C.neon, { depth: 0.5 }); P.glow(ic);
   } });
-  sign.position.set(0, 2.5, d / 2 - 0.05); node.userData.top?.add(sign); SIGNS.push(sign);
+  sign.position.set(0, kind === 'hotel' ? 2.5 : 0, d / 2 - 0.05); node.userData.top?.add(sign); SIGNS.push(sign);
   const halo = new THREE.Mesh(new THREE.PlaneGeometry(9, 7), new THREE.MeshBasicMaterial({ map: haloTex(), transparent: true, opacity: 0.5, depthWrite: false, blending: THREE.AdditiveBlending, color: accent }));
-  halo.position.set(0, 4.6, d / 2 - 0.2); node.userData.top?.add(halo);
+  halo.position.set(0, kind === 'hotel' ? 4.6 : 2.1, d / 2 - 0.2); node.userData.top?.add(halo);
   const hh = popup(null, null, { node, height: h, x, z, level: true });
   H.glowing(hh.group);
   walk.wall(x - w / 2, z + 0.3, x + w / 2, z + 0.3, { r: 0.5, name: 'hotel' });
@@ -232,6 +297,13 @@ const K = {
   }, { w: 5.8, h: 4.6, name: 'boat' }); },
   bollard: () => P2.drawnPiece((g, ink) => { g.fillStyle = ink(C.navy); D.rect(g, -0.22, 0, 0.44, 0.9, 0.1); g.fillStyle = ink(C.cream); D.rect(g, -0.3, 0.7, 0.6, 0.24, 0.1); }, { w: 0.8, h: 1.1, res: 100, name: 'bollard' }),
   gull: () => P2.drawnPiece((g, ink) => { g.fillStyle = ink(C.trunk); D.rect(g, -0.14, 0, 0.28, 1.8); g.fillStyle = ink(C.cream); D.ell(g, 0.05, 1.95, 0.5, 0.3); D.ell(g, 0.45, 2.25, 0.2, 0.19); g.fillStyle = ink(C.orange); D.poly(g, [[0.6, 2.28], [0.92, 2.2], [0.6, 2.14]]); g.fillStyle = ink('#9aa4b4', 'print'); D.ell(g, -0.1, 2.0, 0.3, 0.14); }, { w: 2.0, h: 2.6, res: 80, name: 'gull post' }),
+  cafe: () => P2.drawnPiece((g, ink) => { g.fillStyle = ink(C.navy); D.rect(g, -2.0, 0, 4.0, 0.07); g.fillStyle = ink(C.cream); D.rect(g, -0.07, 0, 0.14, 3.4); g.fillStyle = ink(C.teal); D.poly(g, [...arc(0, 3.0, 1.9, 0.9, 0, Math.PI, 12)]); g.fillStyle = ink(C.cream); for (const k of [-1, 1]) D.poly(g, [[k * 0.35, 3.0], [k * 1.1, 3.0], [k * 0.7, 3.8], [k * 0.25, 3.88]]); g.fillStyle = ink(C.navy); D.rect(g, -0.9, 1.05, 1.8, 0.14, 0.05); D.rect(g, -0.08, 0, 0.16, 1.1); g.fillStyle = ink(C.coral); for (const k of [-1, 1]) { D.rect(g, k * 1.5 - 0.35, 0.62, 0.7, 0.12, 0.04); D.rect(g, k > 0 ? 1.75 : -1.85, 0.62, 0.1, 0.8); D.rect(g, k * 1.5 - 0.3, 0, 0.08, 0.66); D.rect(g, k * 1.5 + 0.22, 0, 0.08, 0.66); } g.fillStyle = ink(C.gold, 'print'); D.ell(g, 0.3, 1.3, 0.16, 0.11); }, { w: 4.3, h: 4.0, name: 'cafe table' }),
+  hoop: (sd = 1) => P2.drawnPiece((g, ink) => { g.save(); g.scale(sd, 1); g.fillStyle = ink(C.navy); D.rect(g, -0.12, 0, 0.24, 4.6); D.rect(g, -0.12, 4.4, 0.9, 0.18); g.fillStyle = ink(C.cream); D.rect(g, 0.6, 3.9, 0.22, 1.9, 0.05); g.fillStyle = ink(C.coral); D.rect(g, 0.75, 4.3, 0.9, 0.12); g.fillStyle = ink('#fdf0d8', 'print'); for (let k = 0; k < 4; k++) D.rect(g, 0.8 + k * 0.22, 3.75, 0.05, 0.55); g.restore(); }, { w: 4.0, h: 6.0, name: 'hoop' }),
+  fence: () => P2.drawnPiece((g, ink) => { g.fillStyle = ink(C.teal); for (let i = 0; i <= 8; i++) D.rect(g, -12 + i * 3, 0, 0.18, 1.9); D.rect(g, -12, 1.7, 24.2, 0.16); D.rect(g, -12, 0.9, 24.2, 0.12); g.fillStyle = ink(P2.shade(C.teal, 0.3), 'print'); for (let x = -11.5; x < 12; x += 0.7) D.rect(g, x, 1.0, 0.04, 0.7); }, { w: 24.8, h: 2.1, res: 24, name: 'court fence' }),
+  fountain: () => P2.drawnPiece((g, ink) => { g.fillStyle = ink('#eedcc4'); D.poly(g, [[-3.2, 0], [3.2, 0], [3.0, 0.9], [-3.0, 0.9]]); D.rect(g, -0.4, 0.85, 0.8, 1.85); D.poly(g, [[-1.6, 2.6], [1.6, 2.6], [1.1, 3.1], [-1.1, 3.1]]); D.rect(g, -0.22, 3.05, 0.44, 0.95); D.ell(g, 0, 4.1, 0.35, 0.3); g.fillStyle = ink(C.seaLight); for (const k of [-1, 1]) D.poly(g, [[k * 0.1, 4.25], [k * 0.9, 4.6], [k * 1.6, 3.6], [k * 1.75, 2.9], [k * 1.45, 2.9], [k * 1.35, 3.5], [k * 0.85, 4.25], [k * 0.1, 3.95]]); for (const k of [-1, 1]) D.poly(g, [[k * 1.2, 2.95], [k * 2.2, 2.6], [k * 2.8, 1.2], [k * 2.9, 0.8], [k * 2.6, 0.8], [k * 2.5, 1.2], [k * 2.0, 2.35], [k * 1.2, 2.65]]); g.fillStyle = ink(C.teal, 'print'); D.rect(g, -3.0, 0.5, 6.0, 0.12); }, { w: 6.8, h: 4.9, res: 50, name: 'fountain' }),
+  bunting: () => P2.drawnPiece((g, ink) => { const y = (x) => 4.45 - 0.7 * (1 - (x / 13.5) ** 2); g.fillStyle = ink(C.navy); D.rect(g, -13.7, 0, 0.24, 4.6); D.rect(g, 13.46, 0, 0.24, 4.6); D.poly(g, [...Array.from({ length: 28 }, (_, i) => [-13.5 + i, y(-13.5 + i) + 0.06]), ...Array.from({ length: 28 }, (_, i) => [13.5 - i, y(13.5 - i) - 0.06])]); for (let i = 0; i < 26; i++) { const x = -12.6 + i; g.fillStyle = ink([C.pink, C.turq, C.gold, C.coral][i % 4]); D.poly(g, [[x - 0.4, y(x - 0.4)], [x + 0.4, y(x + 0.4)], [x, y(x) - 0.8]]); } }, { w: 27.8, h: 4.8, res: 20, name: 'bunting' }),
+  lights: () => P2.drawnPiece((g, ink) => { const y = (x) => 5.5 - 0.6 * (1 - (x / 3) ** 2); g.fillStyle = ink(C.navy); D.rect(g, -3.1, 0, 0.16, 5.6); D.rect(g, 2.94, 0, 0.16, 5.6); D.poly(g, [...Array.from({ length: 13 }, (_, i) => [-3 + i * 0.5, y(-3 + i * 0.5) + 0.05]), ...Array.from({ length: 13 }, (_, i) => [3 - i * 0.5, y(3 - i * 0.5) - 0.05])]); g.fillStyle = ink(C.neon); for (let i = 0; i < 9; i++) { const x = -2.4 + i * 0.6; D.ell(g, x, y(x) - 0.17, 0.13, 0.17); } }, { w: 6.6, h: 5.9, res: 60, name: 'string lights' }),
+  crate: () => P2.drawnPiece((g, ink) => { g.fillStyle = ink('#c9a070'); D.rect(g, -0.7, 0, 1.4, 1.1, 0.05); D.rect(g, -0.45, 1.05, 1.1, 0.8, 0.05); g.fillStyle = ink('#a5804f', 'print'); for (const yy of [0.35, 0.75]) D.rect(g, -0.7, yy, 1.4, 0.06); D.rect(g, -0.45, 1.5, 1.1, 0.06); }, { w: 1.6, h: 2.0, res: 80, name: 'crates' }),
   box: () => P2.drawnPiece((g, ink) => { g.fillStyle = ink('#c9a070'); D.rect(g, -0.6, 0, 1.2, 1.0, 0.04); g.fillStyle = ink('#e9d2a8'); D.rect(g, -0.12, 0, 0.24, 1.0); g.fillStyle = ink(C.coral, 'print'); D.rect(g, -0.42, 0.56, 0.22, 0.22); g.fillStyle = ink('#a5804f', 'print'); D.rect(g, -0.6, 0.94, 1.2, 0.06); }, { w: 1.4, h: 1.1, res: 100, name: 'box' }),
 };
 
@@ -279,31 +351,51 @@ function build() {
   const ST = { palm: stamp('palm', 5, true), parasol: stamp('parasol', 4, true), flamingo: stamp('flamingo', 3), bench: stamp('bench', 1), lamp: stamp('lamp', 1, true), rail: stamp('rail', 1), hut: stamp('hut', 5), boat: stamp('boat', 4), gull: stamp('gull', 1) };
   const put = (kind, x, z, o = {}) => { const q = ST[kind][Math.floor(rnd() * ST[kind].length) % ST[kind].length]; return popup(q.pts, null, { materials: q.m, x, z, cross: q.cross, ...o }); };
 
-  const HOTELS = [[-136, 13, 12, C.lilac, C.coral, 'star'], [-118, 15, 11, C.turq, C.pink, 'palm'], [-99, 14, 14, C.pink, C.teal, 'flamingo'], [-80, 16, 10.5, C.cream, C.coral, 'sun'], [-60, 13, 13, C.lilac, C.orange, 'star'], [-42, 15, 11, '#ffc9a8', C.teal, 'glass'], [-22, 14, 14.5, C.turq, C.coral, 'flamingo'], [-3, 16, 11.5, C.pink, C.lilac, 'sun'], [17, 13, 13.5, C.cream, C.teal, 'palm'], [56, 14, 14, C.lilac, C.coral, 'glass'], [75, 16, 11, C.turq, C.orange, 'flamingo'], [95, 14, 12, C.pink, C.teal, 'sun']];
-  HOTELS.forEach(([x, w, h, wall, accent, icon], i) => hotel(x, { w, h, wall, accent, trim: i % 2 ? C.cream : '#fbe3d2', icon, seed: 300 + i * 20 }));
-  hotel(MX + 15, { w: 11, h: 6.5, d: 7, z: roadZ(MX + 15) - 9, wall: C.cream, accent: C.teal, trim: '#fbe3d2', icon: 'star', seed: 700 });
-  walk.block((x, z) => z > boardZ(x) + 2.95 || (z < (x < 108 ? -22.4 : roadZ(x) - 8.2) && !(Math.abs(x - STORE.x) < STORE.w / 2 - 0.4 && z > STORE.z - STORE.d + 1.0)));
+  const WALLC = { lilac: C.lilac, turq: C.turq, pink: C.pink, cream: C.cream, peach: '#ffc9a8' }, NEONS = [C.pink, C.turq, C.gold, '#b98cff'], CLUBW = ['#3a2a62', '#4a2a5a', '#2a3a62', '#5a2a4a'], DINER = [C.teal, C.coral, C.pink, C.turq];
+  BUILDINGS.forEach((b, i) => {
+    if (b.kind === 'house') house(b);
+    else if (b.kind === 'hotel') hotel(b.x, { w: b.w, h: b.h, d: b.d, z: b.z, wall: WALLC[b.wall], accent: C[b.accent], trim: i % 2 ? C.cream : '#fbe3d2', icon: b.icon, seed: 300 + i * 20 });
+    else hotel(b.x, { kind: b.kind, w: b.w, h: b.h, d: b.d, z: b.z, wall: b.kind === 'club' ? CLUBW[b.i % 4] : C.cream, accent: b.kind === 'club' ? NEONS[b.i % 4] : DINER[b.i % 4], trim: C.cream, icon: b.icon, seed: 300 + i * 20 });
+  });
+  walk.block((x, z) => z > boardZ(x) + 2.95 || inBuilding(x, z));
 
-  for (let i = 2; i < LANE.pts.length - 2; i += 2) { const [x, z] = LANE.pts[i], tx = LANE.pts[i + 1][0] - LANE.pts[i - 1][0], tz = LANE.pts[i + 1][1] - LANE.pts[i - 1][1], n = Math.hypot(tx, tz); if (x > PAGE.x0 + 3 && x < PAGE.x1 - 3 && Math.abs(x - PIER.x) > 4 && Math.abs(x - PIER.x + 17) > 4) put('rail', x - tz / n * 0 , z + 3.4, { yaw: -Math.atan2(tz, tx), level: true }); }
+  for (let i = 2; i < LANE.pts.length - 2; i += 2) { const [x, z] = LANE.pts[i], tx = LANE.pts[i + 1][0] - LANE.pts[i - 1][0], tz = LANE.pts[i + 1][1] - LANE.pts[i - 1][1]; if (x > PAGE.x0 + 3 && x < PAGE.x1 - 3 && Math.abs(x - PIER.x) > 4.6 && Math.abs(x - PIER.x + 17) > 4.6) put('rail', x, z + 3.4, { yaw: -Math.atan2(tz, tx), level: true }); }
   let k = 0;
   for (let x = PAGE.x0 + 5; x < PAGE.x1 - 5; x += 6.5) {
-    k++; const zb = boardZ(x), far = x > 108;
-    if (Math.abs(x - HERO_AT[0]) < 6 || Math.abs(x - SPOT.marisol.at[0]) < 4 || Math.abs(x - BEA_X) < 9 || Math.abs(x - MX) < 7) continue;
+    k++; const zb = boardZ(x);
+    if (Math.abs(x - HERO_AT[0]) < 6 || Math.abs(x - SPOT.marisol.at[0]) < 9 || Math.abs(x - BEA_X) < 9 || Math.abs(x - MX) < 7 || Math.abs(x - MX + 17) < 5) continue;
     if (k % 3 === 0) { const px = x + between(-1, 1), pz = zb - 5.2 - between(0, 1.2); put('palm', px, pz, { sway: 0.5, level: true }); caper.prop(px, pz, 0.5); }
-    else if (k % 3 === 1) { const lz = zb - 4.6; put('lamp', x, lz, { level: true }); solid(x, lz, 0.4); caper.prop(x, lz, 0.45); if (x > -30 && x < 80 && k % 6 === 1) H.lamp(x, 4.6, lz + 0.4, 0.8, 12); }
+    else if (k % 3 === 1) { const lz = zb - 4.6; put('lamp', x, lz, { level: true }); solid(x, lz, 0.4); caper.prop(x, lz, 0.45); if (x > -30 && x < 60 && k % 6 === 1) H.lamp(x, 4.6, lz + 0.4, 0.8, 12); }
     else if (k % 4 === 2) { put('bench', x, zb - 4.3, { yaw: 0 }); solid(x, zb - 4.3, 1.2); caper.prop(x, zb - 4.3, 1.2); }
-    if (k % 2 === 0 && Math.abs(x + 3 - STORE.x) > 9.5) { put('palm', x + 3, far ? roadZ(x) - 7 : -20.6, { sway: 0.5, level: true, scale: 0.9 }); caper.prop(x + 3, far ? roadZ(x) - 7 : -20.6, 0.5); }
-    if (far && k % 3 === 1 && x < MX - 26) put('hut', x, roadZ(x) - 10.5, { yaw: 0, level: true });
-    if (k % 2 && x < MX - 30) put('parasol', x + between(-1.5, 1.5), zb + between(8.2, 11), { level: true });
+    const px = x + 3, pz = roadZ(px) - 7;
+    if (k % 2 === 0 && Math.abs(px - STORE.x) > 9.5 && XS.every((q) => Math.abs(px - q) > 8)) { put('palm', px, pz, { sway: 0.5, level: true, scale: 0.9 }); caper.prop(px, pz, 0.5); }
+    if (k % 2 && x < MX - 32) put('parasol', x + between(-1.5, 1.5), zb + between(8.2, 11), { level: true });
   }
   for (const [dx, dz] of [[0, 0], [1.8, 0.9], [-1.6, 1.1], [3.4, -0.2], [-3.2, -0.4], [0.6, 1.9], [4.6, 1.2]]) caper.prop(24 + dx, boardZ(24) - 6.2 + dz, 0.6, put('flamingo', 24 + dx, boardZ(24) - 6.2 + dz, { scale: 0.95 }), true);
-  for (const [dx, dz] of [[0, 0], [1.6, 0.8], [-1.5, 0.9]]) { caper.prop(-58 + dx, boardZ(-58) - 6 + dz, 0.6, put('flamingo', -58 + dx, boardZ(-58) - 6 + dz, {}), true); caper.prop(150 + dx, boardZ(150) - 6 + dz, 0.6, put('flamingo', 150 + dx, boardZ(150) - 6 + dz, {}), true); }
-  for (const kx of [-13.5, 44, 205]) { const kz = boardZ(kx) - 5.8; popup(...K.kiosk(), { x: kx, z: kz, yaw: 0.05, level: true }); solid(kx, kz, 1.9); caper.prop(kx, kz, 1.9); }
-  popup(...K.lighthouse(), { x: 292, z: boardZ(292) + 9.5, cross: true, level: true, yaw: 0.4 });
-  popup(...K.billboard(), { x: 178, z: roadZ(178) - 9.5, yaw: 0, level: true }); popup(...K.billboard(), { x: 262, z: roadZ(262) - 9.5, yaw: 0.1, level: true });
+  for (const fx of [-58, -100]) for (const [dx, dz] of [[0, 0], [1.6, 0.8], [-1.5, 0.9]]) caper.prop(fx + dx, boardZ(fx) - 6 + dz, 0.6, put('flamingo', fx + dx, boardZ(fx) - 6 + dz, {}), true);
+  for (const kx of [-27.5, 44, 88]) { const kz = boardZ(kx) - 5.8; popup(...K.kiosk(), { x: kx, z: kz, yaw: 0.05, level: true }); solid(kx, kz, 1.9); caper.prop(kx, kz, 1.9); }
+  { const cx = -23, cz = boardZ(-23) - 3.6; popup(...K.cafe(), { x: cx, z: cz, yaw: 0.25, level: true }); solid(cx, cz, 1.3); caper.prop(cx, cz, 1.3); }
+  popup(...K.lighthouse(), { x: 120, z: boardZ(120) + 7.5, cross: true, level: true, yaw: 0.4 });
+  for (const [bx, bz] of [[-104, -86], [35, -86]]) { popup(...K.billboard(), { x: bx, z: bz, yaw: 0, level: true }); solid(bx, bz, 1.2); }
+  for (const zc of [S2, S3]) for (let x = -116; x <= 116; x += 13) {
+    if (XS.some((q) => Math.abs(x - q) < 9) || Math.abs(x - ALLEY.x) < 6 || (zc === S3 && x > LOT.x0 - 2 && x < LOT.x1 + 2)) continue;
+    for (const sd of [-1, 1]) { const pz = zc + sd * 5.6; if (zc === S2 || sd < 0) { put('lamp', x, pz, { level: true }); solid(x, pz, 0.4); caper.prop(x, pz, 0.45); } else { put('palm', x, pz, { sway: 0.5, level: true, scale: 0.85 }); solid(x, pz, 0.45); caper.prop(x, pz, 0.5); } }
+  }
+  for (const q of XS) for (let zc = roadZ(q) - 20; zc > S3 + 10; zc -= 13) { if (Math.abs(zc - S2) < 11) continue; for (const sd of [-1, 1]) { put('palm', q + sd * 5.6, zc, { sway: 0.5, level: true, scale: 0.85 }); solid(q + sd * 5.6, zc, 0.45); caper.prop(q + sd * 5.6, zc, 0.5); } }
+  for (const [x, z] of [[-112, -41], [-64, -42], [-46, -40], [-8, -42], [48, -41], [66, -42], [104, -41], [-122, -92], [-77, -92], [-55, -93], [18, -92], [51, -92], [72, -93], [116, -92]]) put('palm', x, z, { sway: 0.5, level: true, scale: 0.9 });
+  for (const sd of [-1, 1]) { const hx = COURT.x + sd * (COURT.w / 2 - 0.6); popup(...K.hoop(sd), { x: hx, z: COURT.z, yaw: 0, level: true }); solid(hx, COURT.z, 0.5); }
+  popup(...K.fence(), { x: COURT.x, z: COURT.z - COURT.d / 2 - 1, yaw: 0, level: true });
+  { const f = popup(...K.fountain(), { x: PLAZA.x, z: PLAZA.z, cross: true, level: true, yaw: 0.3 }); H.glowing(f.group); solid(PLAZA.x, PLAZA.z, 3.4); caper.prop(PLAZA.x, PLAZA.z, 3.4); }
+  for (const [a, r] of [[0.8, 10.5], [2.35, 10.5], [3.95, 10.5], [5.5, 10.5]]) { const x = PLAZA.x + Math.cos(a) * r, z = PLAZA.z + Math.sin(a) * r; put('palm', x, z, { sway: 0.5, level: true }); solid(x, z, 0.5); }
+  for (const sd of [-1, 1]) { put('bench', PLAZA.x + sd * 6.2, PLAZA.z + 4.2, { yaw: sd * 0.5 }); solid(PLAZA.x + sd * 6.2, PLAZA.z + 4.2, 1.1); }
+  popup(...K.bunting(), { x: (LOT.x0 + LOT.x1) / 2, z: LOT.z1 + 0.6, yaw: 0, level: true });
+  put('hut', LOT.x1 - 4, LOT.z0 + 4, { yaw: 0, level: true }); solid(LOT.x1 - 4, LOT.z0 + 4, 1.8);
+  for (const lz of [-66, -79, -90]) { const h = popup(...K.lights(), { x: ALLEY.x, z: lz, yaw: 0, level: true }); H.glowing(h.group); }
+  for (const [cx, cz] of [[ALLEY.x + 2.1, -72], [ALLEY.x - 2.2, -91]]) { popup(...K.crate(), { x: cx, z: cz, yaw: 0.2, level: true }); solid(cx, cz, 0.8); caper.prop(cx, cz, 0.8); }
 
-  const parked = [[-25, C.coral, false], [30, C.cream, true], [84, C.lilac, false], [-52, C.orange, true], [-88, C.pink, false]];
+  const parked = [[-40, C.coral, false], [30, C.cream, true], [100, C.lilac, false], [-66, C.orange, true], [-108, C.pink, false]];
   parked.forEach(([x, col, top], i) => { const z = roadZ(x) + 4.9, node = car(col, 600 + i * 40, top), h = popup(null, null, { node, height: 2, x, z, level: true }); walk.wall(x - 3.6, z - 1.5, x + 3.6, z - 1.5, { r: 1.7, name: 'car' }); if (!top) CARS.push({ h, node, x, z, x0: x, z0: z, th: 0, v: 0, steer: 0, on: false, t: 0, walk, solid: walk.solids[walk.solids.length - 1] }); });
+  [[LOT.z0 + 5, C.orange], [LOT.z0 + 9.5, C.turq], [LOT.z0 + 14, C.pink]].forEach(([cz, col], i) => { const x = 50, z = cz + 1.5, node = car(col, 950 + i * 30, false), h = popup(null, null, { node, height: 2, x, z, level: true }); walk.wall(x - 3.6, cz, x + 3.6, cz, { r: 1.7, name: 'car' }); CARS.push({ h, node, x, z, x0: x, z0: z, th: 0, v: 0, steer: 0, on: false, t: 0, walk, solid: walk.solids[walk.solids.length - 1] }); });
   { const z = roadZ(BEA_X + 2.6) + 4.9, node = car(C.teal, 900); const h = popup(null, null, { node, height: 2, x: BEA_X + 2.6, z, level: true }); conv = { h, node, x: BEA_X + 2.6, z, x0: BEA_X + 2.6, z0: z, th: 0, v: 0, steer: 0, on: false, t: 0 }; CARS.push(conv); }
   for (const [x0, col, i] of [[60, C.turq, 0], [118, C.gold, 1]]) { const node = car(col, 1000 + i * 40, i % 2 === 1, [{ shirt: C.cream, skin: '#e9b48f', hair: '#3a2a22' }, { shirt: C.coral, skin: '#b9794f', hair: '#1f1a2e' }, { shirt: C.pink, skin: '#f0c7a4', hair: '#c9772f' }, { shirt: C.teal, skin: '#8d5a3b', hair: '#2b2540' }][i]); node.rotation.y = Math.PI; H.scene.add(node); movers.push({ node, x0, x: x0, road: i > 1 }); }
 
@@ -313,7 +405,7 @@ function build() {
   for (const m of [...bodyM, backM, foamM]) for (const q of [m[0], m[2]]) { q.emissive.set('#ffffff'); q.emissiveMap = q.map; q.emissiveIntensity = q === m[2] ? 0.45 : 0.14; }
   for (let r = 0; r < 6; r++) for (let x = PAGE.x0 - 6 + (r % 2) * 12; x < PAGE.x1 + 8; x += WAVE_W - 0.5) {
     const z = shoreZ(x) + 2.6 + r * 5.2, node = new THREE.Group(), sc = 0.8 + r * 0.16;
-    if (x + 12 * sc > MX - 31 && x - 12 * sc < MX + 13 && z < PIER.z + 5) continue;
+    if (x + 12 * sc > MX - 31 && z < PIER.z + 5) continue;
     const back = makeCard(wavePts(2.6, 0.5), { materials: backM }); back.position.set(1.6, 0, -0.5);
     const body = makeCard(wavePts(2.6), { materials: bodyM[(r + Math.round(x)) & 1] });
     const cap = makeCard(foamPts(2.6), { materials: foamM }); cap.position.z = 0.34;
@@ -390,9 +482,9 @@ if (!flags.TEST) {
   H.onStep((t, dt) => life.update(dt, H.target)); H.onRestart(() => life.reset(H.target));
 }
 
-const T = { open: 25.0, steer: 26.15, swing: 26.3, end: 29.0, lettersUp: 12.3, lettersDown: 17.2 };
+const T = { open: 25.0, steer: 26.15, swing: 26.3, reveal: 28.3, end: 30.6, lettersUp: 12.3, lettersDown: 17.2 };
 const INTRO = { on: !flags.TEST, t: 0, cut: T.end, stage: 0, gulls: 0, m: 0 };
-const S3 = { pos: [0.7, 6.9, HERO_AT[1] - 12.5], look: [-4.2, 4.3, HERO_AT[1] + 30] };
+const SHOT3 = { pos: [0.7, 6.9, HERO_AT[1] - 12.5], look: [-4.2, 4.3, HERO_AT[1] + 30] };
 const cam = flight(H, [
   { t: 0, pos: [-128, 4.4, 36], look: [-96, 2.4, 27], fov: 40 },
   { t: 4, pos: [-100, 5.2, 27], look: [-68, 2.6, 15], fov: 40 },
@@ -400,17 +492,23 @@ const cam = flight(H, [
   { t: 10.2, pos: [-50, 11, -8], look: [-18, 6.5, -17], fov: 40 },
   { t: 13, pos: [-26, 27, -31], look: [42, 15, 170], fov: 38 },
   { t: 20, pos: [-12, 31, -38], look: [50, 17, 170], fov: 36 },
-  { t: 24, pos: S3.pos, look: S3.look, fov: 38 },
-  { t: 40, pos: S3.pos, look: S3.look, fov: 38 },
+  { t: 24, pos: SHOT3.pos, look: SHOT3.look, fov: 38 },
+  { t: 40, pos: SHOT3.pos, look: SHOT3.look, fov: 38 },
 ]);
 const V3 = THREE.Vector3;
 cam.custom = (t, api) => {
   if (t < T.swing || !people.length) return false;
-  const m = MARISOL, u = s01((t - T.swing) / (T.end - T.swing)), d = 10.6, pit = 17 * Math.PI / 180;
-  const eLook = new V3(m.at[0], heroLookY(m) - 0.3, m.at[1] + 0.85), ePos = new V3(eLook.x, eLook.y + Math.sin(pit) * d, eLook.z + Math.cos(pit) * d), sPos = new V3(...S3.pos), sLook = new V3(...S3.look);
-  const P = new V3((HERO_AT[0] + m.at[0]) / 2, 0, (HERO_AT[1] + m.at[1]) / 2), aS = Math.atan2(sPos.x - P.x, sPos.z - P.z), aE = Math.atan2(ePos.x - P.x, ePos.z - P.z), a0 = aS < 0 ? aS + 2 * Math.PI : aS;
-  const a = a0 + (aE + 2 * Math.PI - a0) * u, r = Math.hypot(sPos.x - P.x, sPos.z - P.z) + (Math.hypot(ePos.x - P.x, ePos.z - P.z) - Math.hypot(sPos.x - P.x, sPos.z - P.z)) * u;
-  api.pos.set(P.x + Math.sin(a) * r, sPos.y + (ePos.y - sPos.y) * u, P.z + Math.cos(a) * r); api.look.lerpVectors(sLook, eLook, s01(u * 1.25)); api.fov = 38 + (26 - 38) * u; api.focus = eLook;
+  const m = MARISOL, hx = HERO_AT[0], hz = HERO_AT[1], sPos = new V3(...SHOT3.pos), sLook = new V3(...SHOT3.look);
+  const rPos = new V3(hx + 9.5, 6.8, hz + 13.5), rLook = new V3((hx + m.at[0]) / 2 + 2, 2.8, (hz + m.at[1]) / 2);
+  if (t < T.reveal) {
+    const u = s01((t - T.swing) / (T.reveal - T.swing)), aS = Math.atan2(sPos.x - hx, sPos.z - hz), aE = Math.atan2(rPos.x - hx, rPos.z - hz);
+    const a = aS + (aE - aS) * u, rS = Math.hypot(sPos.x - hx, sPos.z - hz), rE = Math.hypot(rPos.x - hx, rPos.z - hz), r = rS + (rE - rS) * u;
+    api.pos.set(hx + Math.sin(a) * r, sPos.y + (rPos.y - sPos.y) * u, hz + Math.cos(a) * r); api.look.lerpVectors(sLook, rLook, s01(u * 1.15)); api.fov = 38 + (30 - 38) * u; api.focus = rLook;
+    return true;
+  }
+  const u = s01((t - T.reveal) / (T.end - T.reveal));
+  api.pos.lerpVectors(rPos, api.playPos, u); api.look.lerpVectors(rLook, api.playLook, u); api.fov = 30 + (api.playFov - 30) * u; api.focus = api.look;
+  api.focusBand = 0.8 + (api.playBand - 0.8) * u; api.blur = 0.55 + 0.45 * u;
   return true;
 };
 const heroLookY = (m) => m.doll.userData.headY * m.scale;
@@ -426,19 +524,19 @@ const carCue = (() => {
   const m = makeCard(pts, { paper: H.paper, paint, thickness: 0.07, edgeWidth: 0.07, pxPerUnit: 70, seed: 515, folds: [], back: 'mirror' }); m.castShadow = false; m.visible = false; m.material[0].emissive.set('#ffffff'); m.material[0].emissiveMap = m.material[0].map; m.material[0].emissiveIntensity = 0.45; H.scene.add(m); return m;
 })();
 const skip = () => { if (INTRO.on && INTRO.t > 2 && INTRO.t < T.open - 0.1) { INTRO.t = T.open - 0.3; for (const L of letters) { L.h.reset(0); L.h.group.visible = false; L.s = 3; } } };
-const route = []; for (let x = 6; x < SPOT.bea.spot[0] - 3; x += 7) route.push([x, boardZ(x) - 0.4]);
+const route = []; for (let x = -6; x < SPOT.bea.spot[0] - 3; x += 7) route.push([x, boardZ(x) - 0.4]);
 const carC = () => [conv.x + Math.sin(conv.th) * 1.5, conv.z - Math.cos(conv.th) * 1.5];
 const heroNearCar = (r) => { const p = window.__papercraft.heroPos, [cx, cz] = carC(); return Math.hypot(p.x - cx, p.z - cz) < r; };
 const drive = {
   enter() { if (conv.on || INTRO.on) return false; talk.close(); if (conv.solid) { const i = conv.walk.solids.indexOf(conv.solid); if (i >= 0) conv.walk.solids.splice(i, 1); } conv.on = true; conv.t = 0; conv.v = 0; SFX.thump(); SFX.setIdle(true); KEYS.clear(); return true; },
-  exit() { if (!conv.on || Math.abs(conv.v) > 2.2) return false; const hook = window.__papercraft, [cx, cz] = carC(); conv.on = false; conv.v = 0; SFX.setIdle(false); SFX.thump(); for (const dz of [3.2, -3.4, 4.4]) if (hook.place(cx - 0.6, cz + dz) != null) break; heroHandle.group.position.y = 0.02; return true; },
+  exit() { if (!conv.on || Math.abs(conv.v) > 2.2) return false; const hook = window.__papercraft, [cx, cz] = carC(); conv.on = false; conv.v = 0; SFX.setIdle(false); SFX.thump(); for (const dz of [3.2, -3.4, 4.4, -4.6]) if (hook.place(cx - Math.sin(conv.th) * dz, cz + Math.cos(conv.th) * dz) != null) break; heroHandle.group.position.y = 0.02; return true; },
 };
 const DEMO_Q = new URLSearchParams(location.search).has('demo');
 const talk = flags.TEST ? null : createTalk(H, { people, cards: false, sfx: SFX, onGoal: (goal) => marker.set(goal), onBlend: (e) => { if (lifeGroup) lifeGroup.visible = e < 0.4; },
   hold: () => INTRO.on || conv.on || caper.hold(), locked: () => INTRO.on, onKey: skip, camHold: () => INTRO.on, onPointer: () => caper.click(), onAlt: () => caper.toggleGun(),
   onUse: (near) => { if (conv.on) { drive.exit(); return true; } const p = window.__papercraft.heroPos, [cx, cz] = carC(), cd = Math.hypot(p.x - cx, p.z - cz); if (caper.use(near, cd)) return true; if (cd < 10 && (talk.busy() || !near || cd <= near.dist + 2.5)) return drive.enter(); return false; },
   onClick: (x, z) => { const [cx, cz] = carC(); if (!conv.on && Math.hypot(x - cx, z - cz) < 5 && heroNearCar(16)) return drive.enter(); return conv.on; },
-  demoPlan: [{ wait: T.end + 0.3 }, { converse: PI('marisol'), pick: 0 }, { walk: [...route, SPOT.bea.spot] }, { converse: PI('bea'), pick: 1 }, { walk: [[BEA_X + 1.5, roadZ(BEA_X) + 6.4]] }, { until: () => drive.enter() || conv.on },
+  demoPlan: [{ wait: T.end + 0.3 }, { walk: [[-6, boardZ(-6) + 1.0], SPOT.marisol.spot] }, { converse: PI('marisol'), pick: 0 }, { walk: [...route, SPOT.bea.spot] }, { converse: PI('bea'), pick: 1 }, { walk: [[BEA_X + 1.5, roadZ(BEA_X) + 6.4]] }, { until: () => drive.enter() || conv.on },
     { until: () => conv.on && conv.x > MX - 18 && Math.abs(conv.v) < 0.5 }, { until: () => drive.exit() || !conv.on }, { walk: [[MX - 1.6, boardZ(MX) + 1.5], [MX - 2.4, PIER.z - 12], SPOT.lenny.spot] }, { converse: PI('lenny'), pick: 1 }, { until: () => boxState > 1 }, { wait: 60 }] });
 let boxState = 0, boxT = 0;
 if (caper) Object.assign(X, { talk, drive, INTRO, box: () => boxState, setBox: (n) => { boxState = n; }, boxMesh: () => boxMesh });
@@ -448,11 +546,11 @@ caper?.start();
 if (!flags.TEST) {
   cam.attach();
   { const wm = document.getElementById('wordmark'); if (wm) drawWordmark(wm, H.paper.sheet); }
-  pageEdges(H, { x0: PAGE.x0, x1: PAGE.x1, paperMaterial });
+  pageEdges4(H, { x0: PAGE.x0, x1: PAGE.x1, z0: PAGE.z0, z1: PAGE.z1, paperMaterial });
   for (const sgn of SIGNS) sgn.userData.setGlow?.(2.3);
   const hook = window.__papercraft; SFX.loadMusic('street', 'media/street.mp3'); SFX.loadMusic('radio', 'media/radio.mp3');
   addEventListener('keydown', (e) => KEYS.add(e.code)); addEventListener('keyup', (e) => KEYS.delete(e.code)); addEventListener('blur', () => KEYS.clear());
-  const fold = foldOut(H, { sfx: SFX, reach: 1, dist: (h, p) => { const d = h.x - p.x, ahead = conv.on ? 64 : 22; return h.manual ? 9 : d > -26 && d < ahead ? 0 : 9; }, startUp: (h) => h.x < 42 && !h.manual, hold: () => INTRO.on });
+  const fold = foldOut(H, { sfx: SFX, reach: 1, dist: (h, p) => { if (h.manual) return 9; const dx = h.x - p.x, dz = h.z - p.z, k = conv.on ? 1.45 : 1; if (h.rocks) return Math.abs(dx) < 70 ? 0 : 9; return Math.abs(dx) < 48 * k && dz > -64 * k && dz < 30 ? 0 : 9; }, startUp: (h) => !h.manual && (h.rocks || (h.z > -48 && h.x < 52)), hold: () => INTRO.on });
   let waveT = 0, gullT = 30, dw = 0; const wrote = new V3(NaN, 0, 0), base = new V3(), dPos = new V3(), dLook = new V3(), lk = new V3(), sPos = new V3(), sLook = new V3();
   cam.extra = (c, post) => {
     const sv = caper.view(), e = s01(dw), e2 = s01(sv.w); if (e <= 0 && e2 <= 0) return;
@@ -479,7 +577,7 @@ if (!flags.TEST) {
     if ((waveT -= dt) <= 0) { waveT = 5.98; if (!talk.speaking()) SFX.wave(INTRO.on && INTRO.t < 11 ? 0.2 : INTRO.on ? 0.1 : hook.heroPos.z > boardZ(hook.heroPos.x) - 6 ? 0.05 : 0.025); }
     for (const m of movers) {
       if (m.road) { m.x -= 4.4 * dt; if (m.x < 112) m.x = MX - 12; } else m.x = m.x0 - INTRO.t * 8.2 - (INTRO.on ? 0 : 400);
-      const x = m.x; m.node.visible = m.road ? Math.abs(x - hook.heroPos.x) < 75 && x < hook.heroPos.x + 66 : x > -150;
+      const x = m.x; m.node.visible = m.road ? Math.abs(x - hook.heroPos.x) < 75 && x < hook.heroPos.x + 66 : x > PAGE.x0 + 4 && x < PAGE.x1 - 4;
       m.node.position.set(x + 3.7, 0.03, roadZ(x) - 4.0); m.node.rotation.y = Math.PI - Math.atan2(roadZ(x - 1) - roadZ(x + 1), 2) * -1; for (const w of m.node.userData.car.wheels) w.rotation.z = x * 1.5;
       if (m.road && conv.on) { const [cx, cz] = carC(), ddx = cx - x, ddz = cz - (roadZ(x) - 2.5), dd = Math.hypot(ddx, ddz); if (dd < 4.8) { conv.z += (4.8 - dd) * 0.25 * (ddz >= 0 ? 1 : -1); conv.v *= 0.97; } }
     }
@@ -490,16 +588,16 @@ if (!flags.TEST) {
     if (conv.on) {
       conv.t += dt;
       let up = KEYS.has('KeyW') || KEYS.has('ArrowUp'), down = KEYS.has('KeyS') || KEYS.has('ArrowDown'), st = (KEYS.has('KeyD') || KEYS.has('ArrowRight') ? 1 : 0) - (KEYS.has('KeyA') || KEYS.has('ArrowLeft') ? 1 : 0);
-      const [cx0, cz0] = carC(), slope = (roadZ(cx0 + 1) - roadZ(cx0 - 1)) / 2, tang = Math.atan(slope), off = cz0 - roadZ(cx0);
+      const [cx0, cz0] = carC(), nr = nearest(cx0, cz0, conv.th), tang = Math.atan2(nr.tz, nr.tx), off = nr.d;
       if (DEMO_Q) { up = cx0 < MX - 24; down = cx0 > MX - 15 && conv.v > 0.2; st = 0; }
       const TOP = 11.5;
       if (up) conv.v += 8 * dt; else if (down) conv.v -= (conv.v > 0 ? 15 : 7) * dt; else conv.v -= Math.sign(conv.v) * Math.min(Math.abs(conv.v), 3 * dt);
-      conv.v = Math.max(-5.5, Math.min(TOP, conv.v)); if (cx0 > PAGE.x1 - 9 && conv.v > 0) conv.v *= 0.9; if (cx0 < PAGE.x0 + 9 && conv.v < 0) conv.v *= 0.9;
+      conv.v = Math.max(-5.5, Math.min(TOP, conv.v));
       conv.steer += (st - conv.steer) * (1 - Math.exp(-dt * 6));
       const moving = Math.min(1, Math.abs(conv.v) / 3) * Math.sign(conv.v || 1);
       conv.th += conv.steer * 1.5 * moving * dt;
-      const fwd = Math.cos(conv.th) >= 0 ? tang : tang + Math.PI; let da = fwd - conv.th; da = Math.atan2(Math.sin(da), Math.cos(da));
-      if (!st || DEMO_Q) conv.th += da * (1 - Math.exp(-dt * 2.6)) * Math.min(1, Math.abs(conv.v) / 3);
+      const fwd = Math.cos(conv.th - tang) >= 0 ? tang : tang + Math.PI; let da = fwd - conv.th; da = Math.atan2(Math.sin(da), Math.cos(da));
+      if ((!st || DEMO_Q) && nr.d < 5.6) conv.th += da * (1 - Math.exp(-dt * 2.6)) * Math.min(1, Math.abs(conv.v) / 3);
       conv.x += Math.cos(conv.th) * conv.v * dt; conv.z += Math.sin(conv.th) * conv.v * dt;
       caper.collide(conv, dt); const [cx, cz] = carC();
       void off;
@@ -510,7 +608,7 @@ if (!flags.TEST) {
       heroDoll.userData.faceCamera(hg.rotation.y, Math.atan2(H.camera.position.x - sx, H.camera.position.z - sz));
       heroDoll.userData.stride(0, 0);
       SFX.motor(dt, conv.v, conv.steer, up || (down && conv.v < 0.1));
-      dLook.set(cx + Math.cos(conv.th) * (6 + conv.v * 0.7), 1.6, cz + Math.sin(conv.th) * 3 - 5); dPos.set(dLook.x - Math.cos(conv.th) * 7, dLook.y + 31, dLook.z + 45);
+      dLook.set(cx + Math.cos(conv.th) * (6 + conv.v * 0.7), 1.6, cz + Math.sin(conv.th) * (4 + conv.v * 0.55) - 5); dPos.set(dLook.x - Math.cos(conv.th) * 7, dLook.y + 31, dLook.z + 45);
     }
     dw += Math.sign((conv.on ? 1 : 0) - dw) * Math.min(Math.abs((conv.on ? 1 : 0) - dw), dt / 1.2);
 
@@ -530,11 +628,11 @@ if (!flags.TEST) {
       if (L.s === 2 && L.h.p < 0.04) { L.s = 3; L.h.group.visible = false; }
     }
     if (it > 22) for (const m of letters.silhouettes) m.visible = false;
-    if (INTRO.stage === 0 && it >= T.open) { INTRO.stage = 1; for (const L of letters) { L.h.reset(0); L.h.group.visible = false; L.s = 3; } talk.open(MARISOL); }
+    if (INTRO.stage === 0 && it >= T.open) { INTRO.stage = 1; for (const L of letters) { L.h.reset(0); L.h.group.visible = false; L.s = 3; } }
     if (!INTRO.m && it > 21.4) { INTRO.m = 1; marisolH.group.visible = true; marisolH.reset(0); marisolH.set(1, 0); marisolH.up = true; }
     if (INTRO.stage === 1 && it >= T.steer) INTRO.stage = 2;
     if (INTRO.stage === 2 && it < T.steer + 0.2) hook.steer(MARISOL.at[0] - hook.heroPos.x, MARISOL.at[1] - 2.6 - hook.heroPos.z); else if (INTRO.stage === 2) { hook.steer(null); INTRO.stage = 3; }
-    if (it >= T.end) { INTRO.on = false; cam.weight = 0; hook.steer(null); talk.setW(1); }
+    if (it >= T.end) { INTRO.on = false; cam.weight = 0; hook.steer(null); }
   });
-  window.__world = { caper, sfx: SFX, intro: INTRO, T, skip, drive, get conv() { return conv; }, cars: CARS, movers, laneCheck: () => laneCheck(LANE, SOLIDS, 1.6), settleCheck: fold.settleCheck, revealAll: fold.revealAll, risen: fold.risen, total: fold.total, box: () => boxState, endIntro() { INTRO.t = Math.max(INTRO.t, T.end - 0.02); if (INTRO.stage < 2) { marisolH.group.visible = true; marisolH.reset(1); marisolH.up = true; INTRO.stage = 3; INTRO.m = 1; talk.open(MARISOL); } } };
+  window.__world = { caper, sfx: SFX, intro: INTRO, T, skip, drive, get conv() { return conv; }, cars: CARS, movers, laneCheck: () => laneCheck(LANE, SOLIDS, 1.6), settleCheck: fold.settleCheck, revealAll: fold.revealAll, risen: fold.risen, total: fold.total, box: () => boxState, endIntro() { INTRO.t = Math.max(INTRO.t, T.end - 0.02); if (INTRO.stage < 2) { marisolH.group.visible = true; marisolH.reset(1); marisolH.up = true; INTRO.stage = 3; INTRO.m = 1; } }, nearest };
 }

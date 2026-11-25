@@ -167,7 +167,7 @@ export function createSound({ seed = 7, birds = true } = {}) {
     },
     setIdle(on) { idleCar = on; engine(on); },
     loadClip, playClip, siren, hasMusic: (name) => !!tracks[name] && !tracks[name].missing, hasClip: (name) => !!clips[name] && !clips[name].missing,
-    pop() { stats.pops = (stats.pops || 0) + 1; burst(0.07, 1100, 0.07); tone('sine', 240, 90, 0, 0.1, 0.03); },
+    pop(loud = false) { stats.pops = (stats.pops || 0) + 1; if (loud) { stats.loudPops = (stats.loudPops || 0) + 1; burst(0.13, 760, 0.16); tone('sine', 190, 60, 0, 0.2, 0.07); tone('square', 120, 70, 0.02, 0.12, 0.018, 600); } else { burst(0.07, 1100, 0.07); tone('sine', 240, 90, 0, 0.1, 0.03); } },
     horn() { stats.horns = (stats.horns || 0) + 1; tone('square', 392, 392, 0, 0.17, 0.022, 1300); tone('square', 494, 494, 0.19, 0.24, 0.022, 1300); },
     coin() { stats.coins = (stats.coins || 0) + 1; tone('sine', 1320, 1320, 0, 0.07, 0.018); tone('sine', 1760, 1760, 0.08, 0.16, 0.018); },
     fanfare() { stats.fanfares = (stats.fanfares || 0) + 1; [523, 659, 784, 1047].forEach((f, i) => tone('triangle', f, f, i * 0.11, i === 3 ? 0.4 : 0.11, 0.02)); },

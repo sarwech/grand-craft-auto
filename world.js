@@ -42,7 +42,7 @@ export function laneCheck(lane, solids, half, skip = () => false) {
 export function flight(H, keys) {
   const THREE = H.THREE, pos = new THREE.Vector3(), look = new THREE.Vector3(), a = new THREE.Vector3(), b = new THREE.Vector3();
   const sm = (t) => t * t * (3 - 2 * t);
-  const api = { weight: 0, t: 0, focusBand: 0.8, pos, look, fov: 26, custom: null, extra: null,
+  const api = { weight: 0, t: 0, focusBand: 0.8, blur: 0.55, pos, look, fov: 26, custom: null, extra: null, playPos: new THREE.Vector3(), playLook: new THREE.Vector3(), playFov: 26, playBand: 0.5,
     at(t) {
       if (api.custom && api.custom(t, api)) return;
       let i = 0; while (i < keys.length - 2 && t > keys[i + 1].t) i++;
@@ -51,9 +51,10 @@ export function flight(H, keys) {
     },
     attach() {
       const post = window.__papercraft.post, cam = H.camera, render = post.render.bind(post), blur0 = post.o.maxBlur, fov0 = cam.fov;
+      api.playFov = fov0; api.playBand = post.o.focusBand;
       const setFov = (f) => { if (Math.abs(cam.fov - f) > 0.01) { cam.fov = f; cam.updateProjectionMatrix(); } };
       post.render = (time) => {
-        if (api.weight > 0) { api.at(api.t); setFov(api.fov); cam.position.copy(pos); cam.lookAt(look); cam.updateMatrixWorld(); post.focus.copy(api.focus || look); post.o.focusBand = api.focusBand; post.o.maxBlur = blur0 * 0.55; }
+        if (api.weight > 0) { api.playPos.copy(cam.position); api.playLook.copy(H.target); api.focusBand = 0.8; api.blur = 0.55; api.at(api.t); setFov(api.fov); cam.position.copy(pos); cam.lookAt(look); cam.updateMatrixWorld(); post.focus.copy(api.focus || look); post.o.focusBand = api.focusBand; post.o.maxBlur = blur0 * api.blur; }
         else { setFov(fov0); post.o.maxBlur = blur0; if (api.extra) api.extra(cam, post); }
         render(time);
       };
@@ -69,4 +70,17 @@ export function pageEdges(H, { x0, x1, desk = '#1f6f80', paperMaterial }) {
   ['#f8ecda', '#ead9c2', '#d9c6ac', '#c6b196'].forEach((c, i) => { const mat = paperMaterial({ color: c, map: H.paper.map }), a = i * 0.45, y = 0.07 - i * 0.008; slab(x1 + a, x1 + a + 0.45, mat, y); slab(x0 - a - 0.45, x0 - a, mat, y); });
   const shade = new THREE.MeshBasicMaterial({ color: '#0c2630', transparent: true, opacity: 0.4, depthWrite: false });
   slab(x1 + 1.8, x1 + 4.6, shade, 0.045); slab(x0 - 4.6, x0 - 1.8, shade, 0.045);
+}
+
+export function pageEdges4(H, { x0, x1, z0, z1, desk = '#1f6f80', paperMaterial }) {
+  const THREE = H.THREE, FAR = 900;
+  const slab = (xa, xb, za, zb, mat, y) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(xb - xa, zb - za), mat); m.rotation.x = -Math.PI / 2; m.position.set((xa + xb) / 2, y, (za + zb) / 2); m.receiveShadow = true; H.scene.add(m); };
+  const dark = paperMaterial({ color: desk, map: H.paper.map });
+  slab(x1, FAR, -FAR, FAR, dark, 0.03); slab(-FAR, x0, -FAR, FAR, dark, 0.03); slab(x0, x1, -FAR, z0, dark, 0.03); slab(x0, x1, z1, FAR, dark, 0.03);
+  ['#f8ecda', '#ead9c2', '#d9c6ac', '#c6b196'].forEach((c, i) => {
+    const mat = paperMaterial({ color: c, map: H.paper.map }), a = i * 0.45, b = a + 0.45, y = 0.07 - i * 0.008;
+    slab(x1 + a, x1 + b, z0 - b, z1 + b, mat, y); slab(x0 - b, x0 - a, z0 - b, z1 + b, mat, y); slab(x0 - a, x1 + a, z0 - b, z0 - a, mat, y); slab(x0 - a, x1 + a, z1 + a, z1 + b, mat, y);
+  });
+  const shade = new THREE.MeshBasicMaterial({ color: '#0c2630', transparent: true, opacity: 0.4, depthWrite: false });
+  slab(x1 + 1.8, x1 + 4.6, z0 - 1.8, z1 + 1.8, shade, 0.045); slab(x0 - 4.6, x0 - 1.8, z0 - 1.8, z1 + 1.8, shade, 0.045); slab(x0 - 4.6, x1 + 4.6, z0 - 4.6, z0 - 1.8, shade, 0.045); slab(x0 - 4.6, x1 + 4.6, z1 + 1.8, z1 + 4.6, shade, 0.045);
 }
