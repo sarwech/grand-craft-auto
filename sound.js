@@ -3,7 +3,8 @@ import { PaperSound } from 'papercraft/lib/paper-sound.js';
 export function createSound({ seed = 7, birds = true } = {}) {
   const sfx = new PaperSound({ volume: 0.5, spacing: 0.42, spacingJitter: 0.15, groupWindow: 0.35 });
   const stats = { steps: 0, flaps: 0, flapsAsked: 0, chirps: 0, gusts: 0, duck: 1, muted: false };
-  let putT = 0, hissT = 0, idleCar = false;
+  let hissT = 0, idleCar = false, eng = null, rev = 0;
+  const music = { buf: null, gain: null, level: 0, want: 0, nextAt: 0, loading: false, on: false };
   let amb = null, analyser = null, duckTo = 1, nextChirp = 6, nextGust = 9, foot = 0, lastStepAt = 0, rs = seed >>> 0;
   const rnd = () => { rs = (Math.imul(rs, 1664525) + 1013904223) >>> 0; return rs / 4294967296; };
   const BASE = () => 0.855 * 2 * sfx.volume;
@@ -14,6 +15,39 @@ export function createSound({ seed = 7, birds = true } = {}) {
     amb = ctx.createGain(); amb.gain.value = 1;
     analyser = ctx.createAnalyser(); analyser.fftSize = 2048;
     amb.connect(sfx.chain.master); sfx.chain.master.connect(analyser);
+    music.gain = ctx.createGain(); music.gain.gain.value = 0; music.gain.connect(sfx.chain.master);
+  }
+  function loadMusic(url) {
+    if (music.loading) return;
+    music.loading = true; music.raw = fetch(url).then((r) => r.arrayBuffer()).catch(() => null);
+  }
+  function playMusic(dt) {
+    const ctx = sfx.ctx; if (!ctx || !music.gain || ctx.state !== 'running') return;
+    if (!music.buf) { if (music.raw && !music.decoding) { music.decoding = true; music.raw.then((a) => a && ctx.decodeAudioData(a)).then((b) => { if (b) music.buf = b; }).catch(() => {}); } return; }
+    const X = 2.5, now = ctx.currentTime;
+    if (music.on && now > music.nextAt - 0.3) {
+      const t = Math.max(now + 0.05, music.nextAt), src = ctx.createBufferSource(), g = ctx.createGain(), first = music.nextAt === 0, len = music.buf.duration;
+      src.buffer = music.buf; g.gain.setValueAtTime(first ? 1 : 0, t); if (!first) g.gain.linearRampToValueAtTime(1, t + X);
+      g.gain.setValueAtTime(1, t + len - X); g.gain.linearRampToValueAtTime(0, t + len);
+      src.connect(g); g.connect(music.gain); src.start(t); music.nextAt = t + len - X;
+    }
+    music.level += (music.want - music.level) * (1 - Math.exp(-dt / 0.9)); music.gain.gain.value = music.level;
+  }
+  function engine(on) {
+    const ctx = sfx.ctx; if (!ctx || !amb) return;
+    if (on && !eng) {
+      const t = ctx.currentTime, o1 = ctx.createOscillator(), o2 = ctx.createOscillator(), lp = ctx.createBiquadFilter(), g = ctx.createGain(), chop = ctx.createOscillator(), chopG = ctx.createGain(), trem = ctx.createGain();
+      o1.type = 'sawtooth'; o2.type = 'square'; o1.frequency.value = 46; o2.frequency.value = 23; lp.type = 'lowpass'; lp.frequency.value = 260; lp.Q.value = 1.2; g.gain.value = 0;
+      chop.type = 'square'; chop.frequency.value = 13; chopG.gain.value = 0.5; trem.gain.value = 0.5; chop.connect(chopG); chopG.connect(trem.gain);
+      o1.connect(lp); o2.connect(lp); lp.connect(trem); trem.connect(g); g.connect(amb); o1.start(t); o2.start(t); chop.start(t);
+      g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.02, t + 0.05);
+      chopG.gain.setValueAtTime(0.5, t + 0.55); chopG.gain.linearRampToValueAtTime(0.06, t + 0.7); trem.gain.setValueAtTime(0.5, t + 0.55); trem.gain.linearRampToValueAtTime(0.94, t + 0.7); chop.frequency.setValueAtTime(13, t + 0.55); chop.frequency.linearRampToValueAtTime(24, t + 0.7);
+      eng = { o1, o2, lp, g, chop, born: t }; rev = 0;
+    } else if (!on && eng) {
+      const t = ctx.currentTime, e = eng; eng = null;
+      e.g.gain.cancelScheduledValues(t); e.g.gain.setTargetAtTime(0, t, 0.12); e.o1.frequency.setTargetAtTime(24, t, 0.2); e.o2.frequency.setTargetAtTime(12, t, 0.2);
+      for (const o of [e.o1, e.o2, e.chop]) o.stop(t + 0.9);
+    }
   }
   function chirp() {
     const ctx = sfx.ctx; if (!ctx || ctx.state !== 'running' || stats.muted) return;
@@ -73,15 +107,17 @@ export function createSound({ seed = 7, birds = true } = {}) {
       }
       stats.gulls = (stats.gulls || 0) + 1;
     },
-    motor(dt, speed, steer) {
+    motor(dt, speed, steer, throttle = false) {
       const ctx = sfx.ctx; if (!ctx || ctx.state !== 'running' || stats.muted || !amb) return;
       const sp = Math.abs(speed);
-      putT -= dt * (3.5 + sp * 0.9);
-      if (putT <= 0 && (sp > 0.3 || idleCar)) {
-        putT = 1; const t = ctx.currentTime + 0.01, o = ctx.createOscillator(), g = ctx.createGain(), lp = ctx.createBiquadFilter();
-        o.type = 'triangle'; o.frequency.setValueAtTime(58 + sp * 3 + rnd() * 6, t); o.frequency.exponentialRampToValueAtTime(40, t + 0.07);
-        lp.type = 'lowpass'; lp.frequency.value = 320; g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.045 + Math.min(0.03, sp * 0.003), t + 0.008); g.gain.exponentialRampToValueAtTime(0.0005, t + 0.09);
-        o.connect(lp); lp.connect(g); g.connect(amb); o.start(t); o.stop(t + 0.11); stats.putts = (stats.putts || 0) + 1;
+      if (eng) {
+        const t = ctx.currentTime, age = t - eng.born, kick = age < 0.55 ? 0 : Math.max(0, 1 - (age - 0.55) / 0.7) * 0.55;
+        rev += ((throttle ? 1 : 0) - rev) * (1 - Math.exp(-dt / (throttle ? 0.25 : 0.5)));
+        const f = age < 0.55 ? 34 + age * 20 : 46 + sp * 7.5 + rev * 22 + kick * 60;
+        eng.o1.frequency.setTargetAtTime(f, t, 0.05); eng.o2.frequency.setTargetAtTime(f / 2, t, 0.05);
+        eng.lp.frequency.setTargetAtTime(240 + sp * 55 + rev * 420 + kick * 500, t, 0.06);
+        if (age > 0.6) eng.g.gain.setTargetAtTime(0.01 + rev * 0.009 + Math.min(0.004, sp * 0.0004), t, 0.08);
+        eng.chop.frequency.setTargetAtTime(age < 0.55 ? 13 : 22 + sp * 3.5 + rev * 8, t, 0.06);
       }
       hissT -= dt;
       if (hissT <= 0 && sp > 6 && Math.abs(steer) > 0.5) {
@@ -89,7 +125,8 @@ export function createSound({ seed = 7, birds = true } = {}) {
         const src = ctx.createBufferSource(), bp = ctx.createBiquadFilter(), g = ctx.createGain(); src.buffer = buf; bp.type = 'bandpass'; bp.frequency.value = 2400; bp.Q.value = 0.7; g.gain.value = 0.012; src.connect(bp); bp.connect(g); g.connect(amb); src.start(); stats.hisses = (stats.hisses || 0) + 1;
       }
     },
-    setIdle(on) { idleCar = on; },
+    setIdle(on) { idleCar = on; engine(on); },
+    loadMusic, music(dt, want) { music.on = true; music.want = want; playMusic(dt); }, musicState: () => ({ loaded: !!music.buf, level: +music.level.toFixed(3), nextAt: +music.nextAt.toFixed(1) }),
     thump() { stats.thumps = (stats.thumps || 0) + 1; sfx.flap({ size: 1, up: false }); },
     toggleMute() { stats.muted = !stats.muted; return stats.muted; },
     level() {

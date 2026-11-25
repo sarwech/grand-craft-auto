@@ -133,7 +133,7 @@ function hotel(x, o) {
   return hh;
 }
 
-function car(col, seed, top = false) {
+function car(col, seed, top = false, driver = null) {
   const g = new THREE.Group(), L = 7.4, W = 3.0, wheels = [];
   const mk = (pts, paint, o = {}) => makeCard(pts, { paper: H.paper, paint, thickness: 0.07, edgeWidth: 0.07, pxPerUnit: 50, seed: seed++, folds: [], back: 'mirror', ...o });
   const plain = (c) => (P) => { P.gradient(P2.shade(c, 0.1), P2.shade(c, -0.12), 0.4); P.felt(0.6); P.innerShade(P2.shade(c, -0.5), { alpha: 0.25, blurPx: 8 }); };
@@ -165,6 +165,18 @@ function car(col, seed, top = false) {
   for (const zc of [-0.8, -2.2]) cross(-0.95, 0.88, 1.0, (P) => { P.gradient('#f6d9c2', '#e3bfa6', 0.3); P.layer((gg) => gg.fillRect(-0.5, 0.7, 1.0, 0.1), C.coral, { depth: 0.3 }); }, 0.12, 1.1, zc);
   cross(0.55, 1.05, 0.7, (P) => { P.fill('#2b2540'); P.layer((gg) => { gg.beginPath(); gg.arc(0, 0.35, 0.2, 0, 7); gg.fill(); }, C.cream, { depth: 0.3 }); }, 0.45, 0.7, -2.2, { pts: arc(0, 0.35, 0.35, 0.35, 0, Math.PI * 2, 14).slice(0, -1) });
   if (top) flatCard(-1.75, 1.0, 2.2, C.cream);
+  if (driver) {
+    const hy = 1.12, hr = 0.5, pts = [[-0.6, 0], [0.6, 0], [0.6, 0.46], [0.28, 0.68]];
+    for (let i = 0; i <= 14; i++) { const a = (-50 + i * 20) * Math.PI / 180; pts.push([Math.cos(a) * hr, hy + Math.sin(a) * hr]); }
+    pts.push([-0.28, 0.68], [-0.6, 0.46]);
+    const paint = (P) => {
+      P.fill(driver.shirt); P.felt(0.5);
+      P.layer((gg) => { gg.beginPath(); gg.arc(0, hy, hr + 0.02, 0, 7); gg.fill(); gg.fillRect(-0.16, 0.5, 0.32, 0.3); }, driver.skin, { depth: 0.4 });
+      P.layer((gg) => { gg.beginPath(); gg.arc(0, hy + 0.06, hr + 0.03, 0.05, Math.PI - 0.05); gg.closePath(); gg.fill(); }, driver.hair, { depth: 0.4 });
+      P.layer((gg) => { gg.fillRect(-0.36, hy - 0.14, 0.3, 0.17); gg.fillRect(0.06, hy - 0.14, 0.3, 0.17); gg.fillRect(-0.1, hy - 0.08, 0.2, 0.05); }, '#2b2540', { depth: 0.3 });
+    };
+    for (const ry of [0, Math.PI / 2]) { const pv = new THREE.Group(); pv.position.set(-0.3, 0.5, -2.2); pv.rotation.y = ry; pv.scale.setScalar(1.75); pv.add(mk(pts, paint)); g.add(pv); }
+  }
   g.userData.car = { wheels, L, W };
   return g;
 }
@@ -282,7 +294,7 @@ function build() {
   const parked = [[-16, C.coral, false], [30, C.cream, true], [84, C.lilac, false], [-52, C.orange, true], [-88, C.pink, false]];
   parked.forEach(([x, col, top], i) => { const z = roadZ(x) + 4.0, node = car(col, 600 + i * 40, top), h = popup(null, null, { node, height: 2, x, z, level: true }); walk.wall(x - 3.6, z - 1.5, x + 3.6, z - 1.5, { r: 1.7, name: 'car' }); if (!top) CARS.push({ h, node, x, z, x0: x, z0: z, th: 0, v: 0, steer: 0, on: false, t: 0, walk, solid: walk.solids[walk.solids.length - 1] }); });
   { const z = roadZ(BEA_X + 2.6) + 4.0, node = car(C.teal, 900); const h = popup(null, null, { node, height: 2, x: BEA_X + 2.6, z, level: true }); conv = { h, node, x: BEA_X + 2.6, z, x0: BEA_X + 2.6, z0: z, th: 0, v: 0, steer: 0, on: false, t: 0 }; CARS.push(conv); }
-  for (const [x0, col, i] of [[60, C.turq, 0], [118, C.gold, 1], [200, C.coral, 2], [300, C.lilac, 3]]) { const node = car(col, 1000 + i * 40, i % 2 === 1); node.rotation.y = Math.PI; H.scene.add(node); movers.push({ node, x0, x: x0, road: i > 1 }); }
+  for (const [x0, col, i] of [[60, C.turq, 0], [118, C.gold, 1], [200, C.coral, 2], [300, C.lilac, 3]]) { const node = car(col, 1000 + i * 40, i % 2 === 1, [{ shirt: C.cream, skin: '#e9b48f', hair: '#3a2a22' }, { shirt: C.coral, skin: '#b9794f', hair: '#1f1a2e' }, { shirt: C.pink, skin: '#f0c7a4', hair: '#c9772f' }, { shirt: C.teal, skin: '#8d5a3b', hair: '#2b2540' }][i]); node.rotation.y = Math.PI; H.scene.add(node); movers.push({ node, x0, x: x0, road: i > 1 }); }
 
   const bodyM = [0, 1].map(() => H.printed(wavePts(2.6), (P) => { P.gradient(C.seaLight, C.sea, 0); P.felt(0.5); P.marks('wave', { color: C.foam, alpha: 0.5, size: 0.2, units: true, region: { ...P.box, y1: 1.2 } }); P.innerShade(C.seaDeep, { alpha: 0.4, blurPx: 10 }); }, { cross: true }));
   const backM = H.printed(wavePts(2.6, 0.5), (P) => { P.gradient(C.seaDeep, '#165d70', 0); P.felt(0.5); }, { cross: true });
@@ -315,7 +327,7 @@ function build() {
   heroDoll = makeBigDoll(H, { id: 'hero', seed: 900, ...DRESS.hero });
   heroHandle = popup(null, null, { node: heroDoll, height: 6.4, x: HERO_AT[0], z: HERO_AT[1], scale: 0.84, level: true });
   const hp = heroHandle.group.position;
-  H.setHero(heroHandle, { stride: (w, gait) => { heroDoll.userData.stride(w, gait); if (gait > 0.4 && !conv.on) SFX.walked(w, Math.abs(hp.z - boardZ(hp.x)) < 3.4 || hp.y > 0.3 ? 'wood' : 'path'); } });
+  H.setHero(heroHandle, { stride: (w, gait) => { if (conv.on) { heroDoll.userData.stride(0, 0); return; } heroDoll.userData.stride(w, gait); if (gait > 0.4 && !conv.on) SFX.walked(w, Math.abs(hp.z - boardZ(hp.x)) < 3.4 || hp.y > 0.3 ? 'wood' : 'path'); } });
 
   const sky = (wd, hgt) => { const c = document.createElement('canvas'); c.width = 8; c.height = 256; const g = c.getContext('2d'), gr = g.createLinearGradient(0, 0, 0, 256); [[0, '#2a2146'], [0.3, '#5b3f8a'], [0.52, '#b0669c'], [0.7, '#f08a7c'], [0.85, '#ffb070'], [1, '#ffd9a0']].forEach(([t, col]) => gr.addColorStop(t, col)); g.fillStyle = gr; g.fillRect(0, 0, 8, 256); const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace; return new THREE.Mesh(new THREE.PlaneGeometry(wd, hgt), new THREE.MeshBasicMaterial({ map: tex })); };
   const s1 = sky(1800, 340); s1.position.set(120, 170, 300); s1.rotation.y = Math.PI; const s2 = sky(1100, 340); s2.position.set(560, 170, 20); s2.rotation.y = -Math.PI / 2; const s3 = sky(1800, 340); s3.position.set(120, 170, -330); H.scene.add(s1, s2, s3); H.scene.background = new THREE.Color('#f2b48c');
@@ -422,7 +434,7 @@ if (!flags.TEST) {
   { const wm = document.getElementById('wordmark'); if (wm) drawWordmark(wm, H.paper.sheet); }
   pageEdges(H, { x0: PAGE.x0, x1: PAGE.x1, paperMaterial });
   for (const sgn of SIGNS) sgn.userData.setGlow?.(2.3);
-  const hook = window.__papercraft;
+  const hook = window.__papercraft; SFX.loadMusic('media/radio.mp3');
   addEventListener('keydown', (e) => KEYS.add(e.code)); addEventListener('keyup', (e) => KEYS.delete(e.code)); addEventListener('blur', () => KEYS.clear());
   const fold = foldOut(H, { sfx: SFX, reach: 1, dist: (h, p) => { const d = h.x - p.x, ahead = conv.on ? 64 : 22; return h === marisolH ? 9 : d > -26 && d < ahead ? 0 : 9; }, startUp: (h) => h.x < 42 && h !== marisolH, hold: () => INTRO.on });
   let waveT = 0, gullT = 30, dw = 0; const wrote = new V3(NaN, 0, 0), base = new V3(), dPos = new V3(), dLook = new V3(), lk = new V3();
@@ -435,7 +447,7 @@ if (!flags.TEST) {
     if (first) { first = false; resetIntro(); }
     for (const L of letters) L.h.update(dt);
     marker.h.update(dt); if (marker.h.open === 0 && marker.h.p < 0.03) marker.h.group.visible = false;
-    SFX.update(dt, talk.speaking());
+    SFX.update(dt, talk.speaking()); SFX.music(dt, INTRO.on ? 0.5 : conv.on ? 0.55 : 0.2);
     const eye = INTRO.on ? (cam.at(INTRO.t), cam.pos) : H.camera.position;
     heroDoll.userData.faceCamera(heroHandle.group.rotation.y, Math.atan2(eye.x - hook.heroPos.x, eye.z - hook.heroPos.z));
     for (const { h, r, x0, z0 } of waves) { if (!h.up) continue; const ph = t * 1.05 - r * 1.05 + x0 * 0.012, k = Math.sin(ph); h.sway = -0.34 * k - 0.1; h.group.position.x = x0 + 1.8 * Math.sin(ph * 0.5 + r * 0.7); h.group.position.z = z0 - 1.1 * k; }
@@ -458,23 +470,23 @@ if (!flags.TEST) {
       const [cx0, cz0] = carC(), slope = (roadZ(cx0 + 1) - roadZ(cx0 - 1)) / 2, tang = Math.atan(slope), off = cz0 - roadZ(cx0);
       if (DEMO_Q) { up = cx0 < MX - 24; down = cx0 > MX - 15 && conv.v > 0.2; st = 0; }
       const TOP = 11.5;
-      if (up) conv.v += 8 * dt; else if (down) conv.v -= (conv.v > 0 ? 15 : 5) * dt; else conv.v -= Math.sign(conv.v) * Math.min(Math.abs(conv.v), 3 * dt);
-      conv.v = Math.max(-4, Math.min(TOP, conv.v)); if (cx0 > PAGE.x1 - 9 && conv.v > 0) conv.v *= 0.9; if (cx0 < PAGE.x0 + 9 && conv.v < 0) conv.v *= 0.9;
+      if (up) conv.v += 8 * dt; else if (down) conv.v -= (conv.v > 0 ? 15 : 7) * dt; else conv.v -= Math.sign(conv.v) * Math.min(Math.abs(conv.v), 3 * dt);
+      conv.v = Math.max(-5.5, Math.min(TOP, conv.v)); if (cx0 > PAGE.x1 - 9 && conv.v > 0) conv.v *= 0.9; if (cx0 < PAGE.x0 + 9 && conv.v < 0) conv.v *= 0.9;
       conv.steer += (st - conv.steer) * (1 - Math.exp(-dt * 6));
       const moving = Math.min(1, Math.abs(conv.v) / 3) * Math.sign(conv.v || 1);
-      conv.th += conv.steer * 1.25 * moving * dt;
+      conv.th += conv.steer * 1.5 * moving * dt;
       const fwd = Math.cos(conv.th) >= 0 ? tang : tang + Math.PI; let da = fwd - conv.th; da = Math.atan2(Math.sin(da), Math.cos(da));
-      conv.th += da * (1 - Math.exp(-dt * (st ? 0.9 : 3.2))) * Math.min(1, Math.abs(conv.v) / 2);
-      if (Math.abs(da) > 1.0) conv.th += da - Math.sign(da) * 1.0;
+      if (!st || DEMO_Q) conv.th += da * (1 - Math.exp(-dt * 2.6)) * Math.min(1, Math.abs(conv.v) / 3);
       conv.x += Math.cos(conv.th) * conv.v * dt; conv.z += Math.sin(conv.th) * conv.v * dt;
-      const [cx, cz] = carC(), o2 = cz - roadZ(cx), lim = 3.1; if (Math.abs(o2) > lim) { conv.z -= (o2 - Math.sign(o2) * lim) * (1 - Math.exp(-dt * 7)); conv.v *= 1 - 0.6 * dt; }
+      const [cx, cz] = carC(), o2 = cz - roadZ(cx), lim = 3.6; if (Math.abs(o2) > lim) { conv.z -= (o2 - Math.sign(o2) * lim) * (1 - Math.exp(-dt * 7)); conv.v *= 1 - 0.6 * dt; }
       void off;
       const g = conv.h.group; g.position.set(conv.x, 0.02 + Math.abs(Math.sin(conv.t * 9)) * 0.025 * Math.min(1, Math.abs(conv.v) / 4), conv.z); g.rotation.y = -conv.th; conv.node.rotation.x = -conv.steer * 0.05 * moving;
       conv.h.x = conv.x; for (const w of conv.node.userData.car.wheels) w.rotation.z -= conv.v * dt / 0.64;
       const sx = conv.x + Math.cos(conv.th) * 0.15 + Math.sin(conv.th) * 2.2, sz = conv.z + Math.sin(conv.th) * 0.15 - Math.cos(conv.th) * 2.2;
       hook.place(sx, sz); const hg = heroHandle.group, hop = conv.t < 0.4 ? Math.sin(conv.t / 0.4 * Math.PI) * 0.9 : 0; hg.position.set(sx, -1.42 + hop + Math.abs(Math.sin(conv.t * 9)) * 0.03 * Math.min(1, Math.abs(conv.v) / 4), sz); hg.rotation.y = Math.PI / 2 - conv.th;
       heroDoll.userData.faceCamera(hg.rotation.y, Math.atan2(H.camera.position.x - sx, H.camera.position.z - sz));
-      SFX.motor(dt, conv.v, conv.steer);
+      heroDoll.userData.stride(0, 0);
+      SFX.motor(dt, conv.v, conv.steer, up || (down && conv.v < 0.1));
       dLook.set(cx + Math.cos(conv.th) * (6 + conv.v * 0.7), 1.6, cz + Math.sin(conv.th) * 3 - 5); dPos.set(dLook.x - Math.cos(conv.th) * 7, dLook.y + 31, dLook.z + 45);
     }
     dw += Math.sign((conv.on ? 1 : 0) - dw) * Math.min(Math.abs((conv.on ? 1 : 0) - dw), dt / 1.2);
@@ -499,5 +511,5 @@ if (!flags.TEST) {
     if (INTRO.stage === 2 && it < T.steer + 0.2) hook.steer(people[0].at[0] - hook.heroPos.x, people[0].at[1] - 2.6 - hook.heroPos.z); else if (INTRO.stage === 2) { hook.steer(null); INTRO.stage = 3; }
     if (it >= T.end) { INTRO.on = false; cam.weight = 0; hook.steer(null); talk.setW(1); }
   });
-  window.__world = { sfx: SFX, intro: INTRO, T, skip, drive, get conv() { return conv; }, cars: CARS, laneCheck: () => laneCheck(LANE, SOLIDS, 1.6), settleCheck: fold.settleCheck, revealAll: fold.revealAll, risen: fold.risen, total: fold.total, box: () => boxState, endIntro() { INTRO.t = Math.max(INTRO.t, T.end - 0.02); if (INTRO.stage < 2) { marisolH.group.visible = true; marisolH.reset(1); marisolH.up = true; INTRO.stage = 3; talk.open(people[0]); } } };
+  window.__world = { sfx: SFX, intro: INTRO, T, skip, drive, get conv() { return conv; }, cars: CARS, movers, laneCheck: () => laneCheck(LANE, SOLIDS, 1.6), settleCheck: fold.settleCheck, revealAll: fold.revealAll, risen: fold.risen, total: fold.total, box: () => boxState, endIntro() { INTRO.t = Math.max(INTRO.t, T.end - 0.02); if (INTRO.stage < 2) { marisolH.group.visible = true; marisolH.reset(1); marisolH.up = true; INTRO.stage = 3; talk.open(people[0]); } } };
 }
