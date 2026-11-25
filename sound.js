@@ -19,7 +19,47 @@ export function createSound({ seed = 7, birds = true } = {}) {
   }
   function loadMusic(name, url) {
     if (tracks[name]) return;
-    tracks[name] = { buf: null, gain: null, level: 0, want: 0, nextAt: 0, decoding: false, raw: fetch(url).then((r) => r.arrayBuffer()).catch(() => null) };
+    const m = tracks[name] = { buf: null, gain: null, level: 0, want: 0, nextAt: 0, decoding: false, missing: false, raw: fetch(url).then((r) => (r.ok ? r.arrayBuffer() : null)).catch(() => null) };
+    m.raw.then((a) => { if (!a) m.missing = true; });
+    const ctx = sfx.ctx; if (ctx && amb) { m.gain = ctx.createGain(); m.gain.gain.value = 0; m.gain.connect(sfx.chain.master); }
+  }
+  const clips = {};
+  function loadClip(name, url) {
+    if (clips[name]) return;
+    const c = clips[name] = { buf: null, missing: false, raw: fetch(url).then((r) => (r.ok ? r.arrayBuffer() : null)).catch(() => null) };
+    c.raw.then((a) => { if (!a) c.missing = true; });
+  }
+  function playClip(name, gain = 0.5) {
+    const ctx = sfx.ctx, c = clips[name]; stats.clipsAsked = (stats.clipsAsked || 0) + 1;
+    if (!ctx || !amb || !c || c.missing || stats.muted || ctx.state !== 'running') return false;
+    const go = (b) => { const s = ctx.createBufferSource(), g = ctx.createGain(); s.buffer = b; g.gain.value = gain; s.connect(g); g.connect(amb); s.start(); stats.clips = (stats.clips || 0) + 1; };
+    if (c.buf) go(c.buf); else c.raw.then((a) => a && ctx.decodeAudioData(a.slice(0))).then((b) => { if (b) { c.buf = b; go(b); } }).catch(() => { c.missing = true; });
+    return true;
+  }
+  const live = () => { const ctx = sfx.ctx; return ctx && amb && ctx.state === 'running' && !stats.muted ? ctx : null; };
+  function tone(type, f0, f1, at, len, gain, cut = 0) {
+    const ctx = live(); if (!ctx) return;
+    const t = ctx.currentTime + 0.01 + at, o = ctx.createOscillator(), g = ctx.createGain(); o.type = type; o.frequency.setValueAtTime(f0, t); if (f1 !== f0) o.frequency.exponentialRampToValueAtTime(f1, t + len);
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(gain, t + 0.012); g.gain.setValueAtTime(gain, t + len * 0.7); g.gain.linearRampToValueAtTime(0, t + len);
+    if (cut) { const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = cut; o.connect(lp); lp.connect(g); } else o.connect(g);
+    g.connect(amb); o.start(t); o.stop(t + len + 0.03);
+  }
+  function burst(len, freq, gain) {
+    const ctx = live(); if (!ctx) return;
+    const n = Math.ceil(len * ctx.sampleRate), buf = ctx.createBuffer(1, n, ctx.sampleRate), d = buf.getChannelData(0); for (let i = 0; i < n; i++) d[i] = (rnd() * 2 - 1) * (1 - i / n) ** 2;
+    const src = ctx.createBufferSource(), bp = ctx.createBiquadFilter(), g = ctx.createGain(); src.buffer = buf; bp.type = 'bandpass'; bp.frequency.value = freq; bp.Q.value = 0.8; g.gain.value = gain; src.connect(bp); bp.connect(g); g.connect(amb); src.start();
+  }
+  let sir = null;
+  function siren(level) {
+    const ctx = sfx.ctx; if (!ctx || !amb || ctx.state !== 'running') return;
+    if (!sir) {
+      if (level <= 0) return;
+      const o = ctx.createOscillator(), lfo = ctx.createOscillator(), depth = ctx.createGain(), lp = ctx.createBiquadFilter(), g = ctx.createGain();
+      o.type = 'triangle'; o.frequency.value = 560; lfo.type = 'square'; lfo.frequency.value = 1.35; depth.gain.value = 85; lp.type = 'lowpass'; lp.frequency.value = 1500; g.gain.value = 0;
+      lfo.connect(depth); depth.connect(o.frequency); o.connect(lp); lp.connect(g); g.connect(amb); o.start(); lfo.start(); sir = { g };
+    }
+    stats.siren = +level.toFixed(2);
+    sir.g.gain.setTargetAtTime(stats.muted ? 0 : Math.max(0, level) * 0.014, ctx.currentTime, 0.25);
   }
   function playMusic(dt, m) {
     const ctx = sfx.ctx; if (!ctx || !m.gain || ctx.state !== 'running') return;
@@ -126,6 +166,11 @@ export function createSound({ seed = 7, birds = true } = {}) {
       }
     },
     setIdle(on) { idleCar = on; engine(on); },
+    loadClip, playClip, siren, hasMusic: (name) => !!tracks[name] && !tracks[name].missing, hasClip: (name) => !!clips[name] && !clips[name].missing,
+    pop() { stats.pops = (stats.pops || 0) + 1; burst(0.07, 1100, 0.07); tone('sine', 240, 90, 0, 0.1, 0.03); },
+    horn() { stats.horns = (stats.horns || 0) + 1; tone('square', 392, 392, 0, 0.17, 0.022, 1300); tone('square', 494, 494, 0.19, 0.24, 0.022, 1300); },
+    coin() { stats.coins = (stats.coins || 0) + 1; tone('sine', 1320, 1320, 0, 0.07, 0.018); tone('sine', 1760, 1760, 0.08, 0.16, 0.018); },
+    fanfare() { stats.fanfares = (stats.fanfares || 0) + 1; [523, 659, 784, 1047].forEach((f, i) => tone('triangle', f, f, i * 0.11, i === 3 ? 0.4 : 0.11, 0.02)); },
     loadMusic, music(dt, levels) { for (const [name, m] of Object.entries(tracks)) { m.want = levels[name] || 0; playMusic(dt, m); } }, musicState: () => Object.fromEntries(Object.entries(tracks).map(([k, m]) => [k, { loaded: !!m.buf, level: +m.level.toFixed(3) }])),
     thump() { stats.thumps = (stats.thumps || 0) + 1; sfx.flap({ size: 1, up: false }); },
     toggleMute() { stats.muted = !stats.muted; return stats.muted; },

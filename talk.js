@@ -32,7 +32,7 @@ const rrect = (x, y, w, h, k, n = 5) => {
   q(x + w - k, y + k, -Math.PI / 2); q(x + w - k, y + h - k, 0); q(x + k, y + h - k, Math.PI / 2); q(x + k, y + k, Math.PI);
   return p;
 };
-export function createTalk(H, { people, cards = false, outro = [], cream = '#f6ecd6', onBlend = null, onGoal = null, sfx = null, hold = null, locked = null, onKey = null, demoPlan = null, viewFrom = null, camHold = null, onUse = null, onClick = null }) {
+export function createTalk(H, { people, cards = false, outro = [], cream = '#f6ecd6', onBlend = null, onGoal = null, sfx = null, hold = null, locked = null, onKey = null, demoPlan = null, viewFrom = null, camHold = null, onUse = null, onClick = null, onPointer = null, onAlt = null }) {
   const THREE = H.THREE, Q = new URLSearchParams(location.search);
   const SYNC = Q.has('capture'), DEMO = Q.has('demo'), NOSTART = SYNC || Q.has('nostart');
   const sound = sfx || new PaperSound({ volume: 0.9 });
@@ -100,7 +100,7 @@ export function createTalk(H, { people, cards = false, outro = [], cream = '#f6e
     if (cards) Object.assign(v, buildCard(v)); else Object.assign(v, { h: still, mater: v.doll.userData.head.mater, screen: v.doll.userData.head.face });
     v.head = cards ? null : v.doll.userData.head; v.posterTex = raw(loader.load(v.poster)); if (v.head) v.head.posterTex = v.posterTex;
     v.greeted = false; v.heard = (v.replies || []).map(() => false); v.afterI = 0; v.stage = 'intro';
-    for (const c of [v.greet, ...(v.replies || []), ...(v.after || [])]) if (c) clipMedia(c);
+    for (const c of [v.greet, ...(v.replies || []), ...(v.after || []), v.gun]) if (c && c.video) clipMedia(c);
     v.clip = v.greet; v.m = clipMedia(v.greet); show(v, idleTex(v));
     const c = Math.cos(v.card.yaw), s = Math.sin(v.card.yaw), mid = WIN_CY, back = mid * Math.sin(LEAN);
     v.centre = cards ? new THREE.Vector3(v.card.x - s * back, mid * Math.cos(LEAN), v.card.z - c * back) : new THREE.Vector3(v.at[0], v.doll.userData.headY * v.scale + (v.lift || 0), v.at[1] + 0.1);
@@ -116,10 +116,10 @@ export function createTalk(H, { people, cards = false, outro = [], cream = '#f6e
 
   const duration = (v) => (v.m.missing ? 3.5 : Number.isFinite(v.m.el.duration) && v.m.el.duration > 0 ? v.m.el.duration : 14);
   let line = null;
-  const say = (v, t = 0) => {
-    const cues = v && v.clip.cues && v.clip.cues.length ? v.clip.cues : null;
+  const say = (v, t = 0, clip = v && v.clip) => {
+    const cues = clip && clip.cues && clip.cues.length ? clip.cues : null;
     let text = '';
-    if (cues) { for (const c of cues) if (c.t <= t + 0.02) text = c.text; else break; } else if (v) text = v.clip.caption || '';
+    if (cues) { for (const c of cues) if (c.t <= t + 0.02) text = c.text; else break; } else if (clip) text = clip.caption || '';
     if (text === line) return;
     line = text;
     ui.caption.classList.toggle('cue', !!cues);
@@ -147,17 +147,37 @@ export function createTalk(H, { people, cards = false, outro = [], cream = '#f6e
     stall = 0; lastT = -1; watchT = 0; waitT = 0;
     if (!v.m.missing) { if (!el.paused) el.pause(); rewind(el); } else show(v, idleTex(v));
   }
-  function open(v) {
+  let bk = null;
+  function endBark() { if (!bk) return; bk.m.el.pause(); show(bk.v, idleTex(bk.v)); if (!active) say(null); bk = null; }
+  function bark(v, clip) {
+    if (!v || !clip || !clip.video || active || bk || !entered) return false;
+    const m = clipMedia(clip), el = m.el; if (m.missing) return false;
+    m.priming = null; m.primed = true; el.muted = false; el.volume = 1; if (!el.paused) el.pause(); rewind(el);
+    bk = { v, clip, m, t: 0, wait: 0 }; stats.barks = (stats.barks || 0) + 1;
+    if (!SYNC) tryPlay(el);
+    return true;
+  }
+  function barkStep(dt) {
+    const el = bk.m.el, ready = el.readyState >= 2, dur = Number.isFinite(el.duration) && el.duration > 0 ? el.duration : 4;
+    if (active || bk.m.missing || bk.v.dist > 34) { endBark(); return; }
+    if (SYNC || ready) bk.t += dt; else if ((bk.wait += dt) > 3) { endBark(); return; }
+    if (SYNC && ready) { const t = Math.min(bk.t, dur - TRIM); if (Math.abs(el.currentTime - t) > 0.039) el.currentTime = t; }
+    if (ready && bk.v.mater.uniforms.map.value !== bk.m.tex) show(bk.v, bk.m.tex);
+    say(bk.v, SYNC ? bk.t : el.currentTime, bk.clip);
+    if ((SYNC ? bk.t >= dur - TRIM : el.ended || el.currentTime >= dur - TRIM) || bk.t > dur + 2) endBark();
+  }
+  function open(v, once = false) {
     if (!v || (active === v && phase !== 'closing')) return false;
+    if (bk) endBark();
     if (active) finish(active);
     active = v; phase = 'rising'; tPhase = 0; tPlay = 0;
     const first = !v.greeted || !(v.after && v.after.length);
-    startClip(v, first ? v.greet : v.after[v.afterI++ % v.after.length], 'intro'); v.rearm = false;
+    startClip(v, first ? v.greet : v.after[v.afterI++ % v.after.length], 'intro'); v.rearm = false; v.once = once;
     show(v, idleTex(v));
     v.h.set(1, 0); sound.flap({ size: 0.9, up: true });
     if (goal) onGoal?.(null);
     goal = null; pending = null; hook?.steer(null);
-    if (!cards && hook && !DEMO && !(camHold && camHold()) && Math.abs(hook.heroPos.x - v.at[0]) < 4.8 && hook.heroPos.z > v.at[1] - 1.5) { goal = v.spot; stuckT = 0; }
+    if (!cards && hook && !DEMO && !(camHold && camHold()) && (v.pull || (Math.abs(hook.heroPos.x - v.at[0]) < 4.8 && hook.heroPos.z > v.at[1] - 1.5))) { goal = v.spot; stuckT = 0; }
     return true;
   }
   function choose(i) {
@@ -218,6 +238,7 @@ export function createTalk(H, { people, cards = false, outro = [], cream = '#f6e
       }
     }
     if (!hook || !entered) return;
+    if (bk) barkStep(dt);
     near = null;
     let hailed = null;
     for (const v of people) { if (v.rearm === false && v.dist > (v.hail || 8.5) + 1) v.rearm = true; if (v.handle.p < 0.9) continue; if (v.dist < reach(v) && (!near || v.dist < near.dist)) near = v; if (!v.greeted && v.rearm !== false && v.dist < (v.hail || 8.5) && (!hailed || v.dist < hailed.dist)) hailed = v; }
@@ -249,7 +270,7 @@ export function createTalk(H, { people, cards = false, outro = [], cream = '#f6e
         const over = SYNC || v.m.missing ? tPlay >= duration(v) - TRIM : (el.ended || el.currentTime >= duration(v) - TRIM || tPlay > duration(v) + 2.5);
         if (over) {
           if (v.clip === v.greet) v.greeted = true;
-          if (v.stage === 'intro' && !cards && v.replies && v.replies.length) { phase = 'choosing'; tPhase = 0; sel = v.heard[0] && !v.heard[1] ? 1 : 0; pressT = -1; el.pause(); show(v, idleTex(v)); say(null); showTags(v); }
+          if (v.stage === 'intro' && !cards && !v.once && v.replies && v.replies.length) { phase = 'choosing'; tPhase = 0; sel = v.heard[0] && !v.heard[1] ? 1 : 0; pressT = -1; el.pause(); show(v, idleTex(v)); say(null); showTags(v); }
           else close();
         }
       } else if (phase === 'choosing' && pressT >= 0) { pressT += dt; if (pressT >= 0.38) { pressT = -1; choose(pressI); } }
@@ -296,7 +317,7 @@ export function createTalk(H, { people, cards = false, outro = [], cream = '#f6e
   const screenOf = (p, rect) => { tmp.copy(p).project(H.camera); return [rect.left + (tmp.x * 0.5 + 0.5) * rect.width, rect.top + (0.5 - tmp.y * 0.5) * rect.height, tmp.z]; };
   function drawUi() {
     const rect = H.renderer.domElement.getBoundingClientRect();
-    const cueV = entered && near && !(active === near && phase !== 'closing') && !DEMO && !(hold && hold()), show = cueV || (entered && !DEMO && !active && api.cue);
+    const cueV = entered && near && !api.cue && !(active === near && phase !== 'closing') && !DEMO && !(hold && hold()), show = cueV || (entered && !DEMO && !active && api.cue);
     ui.prompt.classList.toggle('on', !!show);
     if (show) {
       const [x, y] = cueV ? screenOf(tmp2.set(near.at[0], near.height + 0.5 + (near.lift || 0), near.at[1]), rect) : screenOf(tmp2.set(...api.cue), rect);
@@ -320,6 +341,7 @@ export function createTalk(H, { people, cards = false, outro = [], cream = '#f6e
       if (e <= 0 && !cards) { let nv = null; for (const v of people) if (v.handle.p > 0.9 && v.dist < 20 && (!nv || v.dist < nv.dist)) nv = v; if (nv) post.focus.lerp(tmp2.set(nv.at[0], 3.2, nv.at[1]), 0.55 * smooth((20 - nv.dist) / 8)); }
       o.falloff = base.falloff * (1 - e); o.falloffTint = base.falloffTint * (1 - e); o.focusBand = base.focusBand + (0.46 - base.focusBand) * e;
       if (SYNC && active && !active.m.missing && active.m.el.readyState >= 2) active.m.tex.needsUpdate = true;
+      if (SYNC && bk && bk.m.el.readyState >= 2) bk.m.tex.needsUpdate = true;
       onBlend?.(e);
       drawUi();
       render(time);
@@ -329,7 +351,7 @@ export function createTalk(H, { people, cards = false, outro = [], cream = '#f6e
     const primeAll = () => {
       for (const m of media.values()) {
         const el = m.el;
-        if (m.primed || m.missing || !el.src || (active && active.m === m)) continue;
+        if (m.primed || m.missing || !el.src || (active && active.m === m) || (bk && bk.m === m)) continue;
         m.primed = true; stats.primed++;
         const token = {}; m.priming = token; el.muted = true;
         const p = el.play();
@@ -354,7 +376,7 @@ export function createTalk(H, { people, cards = false, outro = [], cream = '#f6e
     function click(cx, cy) {
       const rect = cvs.getBoundingClientRect();
       let pick = null, best = rect.height * 0.07;
-      for (const v of people) { const [x, y] = screenOf(tmp2.set(v.at[0], v.height * 0.55, v.at[1]), rect), d = Math.hypot(x - cx, y - cy); if (d < best) { best = d; pick = v; } }
+      for (const v of people) { if (v.handle.p < 0.9 || v.handle.group.visible === false) continue; const [x, y] = screenOf(tmp2.set(v.at[0], v.height * 0.55 + (v.lift || 0), v.at[1]), rect), d = Math.hypot(x - cx, y - cy); if (d < best) { best = d; pick = v; } }
       if (pick) {
         if (pick.dist < reach(pick)) open(pick);
         else { if (active) close(); goal = pick.spot; pending = pick; stuckT = 0; onGoal?.(goal); }
@@ -378,8 +400,8 @@ export function createTalk(H, { people, cards = false, outro = [], cream = '#f6e
     } else if (DEMO) document.body.classList.add('no-pointer');
     if (DEMO || SYNC) document.body.classList.add('quiet');
     let down = null;
-    addEventListener('pointerdown', (ev) => { if (ev.target !== cvs) return; ev.stopPropagation(); if (!entered || DEMO || (locked && locked())) return; down = [ev.clientX, ev.clientY]; kick(); }, true);
-    addEventListener('pointerup', (ev) => { if (!down) return; const d = Math.hypot(ev.clientX - down[0], ev.clientY - down[1]); down = null; if (d < 12) click(ev.clientX, ev.clientY); }, true);
+    addEventListener('pointerdown', (ev) => { if (ev.target !== cvs) return; ev.stopPropagation(); if (!entered || DEMO || (locked && locked())) return; kick(); if (ev.button === 2) { onAlt?.(); return; } down = [ev.clientX, ev.clientY]; }, true);
+    addEventListener('pointerup', (ev) => { if (!down) return; const d = Math.hypot(ev.clientX - down[0], ev.clientY - down[1]); down = null; if (d < 12 && !(onPointer && onPointer(ev.clientX, ev.clientY))) click(ev.clientX, ev.clientY); }, true);
     addEventListener('keydown', (ev) => {
       if (ev.code === 'F20') return;
       if (!entered) { ev.stopPropagation(); enter(); return; }
@@ -413,5 +435,5 @@ export function createTalk(H, { people, cards = false, outro = [], cream = '#f6e
     };
   }
   const api = { cue: null };
-  return Object.assign(api, { attach, people, close: () => close(), setW: (v) => { w = v; }, speaking: () => !!active && phase === 'playing', busy: () => !!active, active: () => active, phase: () => phase, open: (v, cut) => { const ok = open(v); if (ok && cut) { w = 1; poseLive = false; } return ok; }, demo: DEMO, sync: SYNC });
+  return Object.assign(api, { attach, people, close: () => close(), setW: (v) => { w = v; }, speaking: () => (!!active && phase === 'playing') || !!bk, bark, barking: () => (bk ? bk.v : null), stats, busy: () => !!active, active: () => active, phase: () => phase, open: (v, cut, once) => { const ok = open(v, once); if (ok && cut) { w = 1; poseLive = false; } return ok; }, demo: DEMO, sync: SYNC });
 }

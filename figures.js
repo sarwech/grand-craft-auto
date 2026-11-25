@@ -141,12 +141,14 @@ export function makeDoll(H, s) {
   const pose = (walked, gait) => {
     const ph = walked / stepLen * Math.PI, l0 = swing(ph, gait), l1 = swing(ph + Math.PI, gait), k = s.carry ? 0.3 : 0.7;
     legs[0].rotation.x = -l0; legs[1].rotation.x = -l1;
-    arms[0].rotation.x = l0 * 0.7 - talk * (0.55 + 0.16 * Math.sin(idleT * 4.1));
-    arms[1].rotation.x = l1 * k + Math.sin(idleT * 1.3) * 0.03;
+    const up = g.userData.up || 0, fist = g.userData.fist || 0;
+    arms[0].rotation.x = (l0 * 0.7 - talk * (0.55 + 0.16 * Math.sin(idleT * 4.1))) * (1 - up) - up * 2.9;
+    arms[1].rotation.x = (l1 * k + Math.sin(idleT * 1.3) * 0.03) * (1 - Math.max(up, fist)) - up * 2.9 - fist * (2.5 + 0.5 * Math.sin(idleT * 17));
     body.position.y = Math.abs(Math.sin(ph)) * 0.05 * gait;
   };
   g.userData.stride = pose;
   g.userData.idle = (t, talking) => { idleT = t; talk += ((talking ? 1 : 0) - talk) * 0.08; pose(0, 0); };
+  g.userData.clock = (t) => { idleT = t; };
   g.userData.height = 2.7;
   return g;
 }
@@ -205,7 +207,7 @@ export function makeBigDoll(H, s) {
   });
   const arms = [-1, 1].map((sd, i) => {
     const sh = new THREE.Group(); sh.position.set(sd * 0.84, 2.6, MID); sh.rotation.z = sd * 0.3; body.add(sh);
-    const sw = new THREE.Group(); sh.add(sw);
+    const sw = new THREE.Group(); sh.add(sw); sw.userData.root = sh;
     const art = (c, name) => piece((gg, ink) => {
       gg.fillStyle = ink(c); D.rect(gg, -0.17, 0.3, 0.34, 1.06, 0.16);
       gg.fillStyle = ink(s.cuff || P2.shade(s.top, -0.22)); D.rect(gg, -0.18, 0.3, 0.36, 0.16, 0.06);
@@ -261,7 +263,10 @@ export function makeBigDoll(H, s) {
   const pose = (walked, gait) => {
     const ph = walked / stepLen * Math.PI, a = Math.sin(ph) * 0.55 * gait;
     legs[0].rotation.x = -a; legs[1].rotation.x = a;
-    arms[0].rotation.x = a * 0.6 - talk * (0.5 + 0.2 * Math.sin(idleT * 3.7)); arms[1].rotation.x = -a * 0.6 - talk * 0.12 * (1 + Math.sin(idleT * 2.9 + 1));
+    const up = g.userData.up || 0, aim = g.userData.aim || 0;
+    arms[0].rotation.x = (a * 0.6 - talk * (0.5 + 0.2 * Math.sin(idleT * 3.7))) * (1 - up) - up * 2.75;
+    arms[1].rotation.x = ((-a * 0.6 - talk * 0.12 * (1 + Math.sin(idleT * 2.9 + 1))) * (1 - up) - up * 2.75) * (1 - aim) - aim * 1.5;
+    arms[1].userData.root.rotation.z = 0.3 * (1 - aim);
     body.position.y = LIFT + Math.abs(Math.sin(ph)) * 0.05 * gait;
     body.rotation.z = Math.sin(idleT * 2.3) * 0.025 * talk; tilt.rotation.z = Math.sin(idleT * 1.9 + 0.6) * 0.03 * talk;
   };
@@ -277,7 +282,7 @@ export function makeBigDoll(H, s) {
   };
   g.userData.headY = NECK_Y + LIFT + HEAD_H / 2;
   g.userData.height = NECK_Y + LIFT + HEAD_H;
-  g.userData.legs = legs; g.userData.body = body;
+  g.userData.legs = legs; g.userData.body = body; g.userData.arms = arms; g.userData.tilt = tilt;
   return g;
 }
 

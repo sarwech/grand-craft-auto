@@ -98,7 +98,29 @@ export default [
           }
         ]
       }
-    ]
+    ],
+    "gun": {
+      "video": "media/marisol_gun.mp4",
+      "caption": "You are pointing a flag at me, and I am going to stand here and watch you decide whether that was the best idea you have had today, or only the most recent.",
+      "cues": [
+        {
+          "t": 0.0,
+          "text": "You are pointing a flag at me, and I am"
+        },
+        {
+          "t": 3.33,
+          "text": "going to stand here and watch you decide"
+        },
+        {
+          "t": 5.45,
+          "text": "whether that was the best idea you have"
+        },
+        {
+          "t": 7.55,
+          "text": "had today, or only the most recent."
+        }
+      ]
+    }
   },
   {
     "id": "bea",
@@ -195,7 +217,33 @@ export default [
           }
         ]
       }
-    ]
+    ],
+    "gun": {
+      "video": "media/bea_gun.mp4",
+      "caption": "Oh. A gun. No, wait... That's a flag. Cute.",
+      "cues": [
+        {
+          "t": 0.65,
+          "text": "Oh."
+        },
+        {
+          "t": 3.2,
+          "text": "A gun."
+        },
+        {
+          "t": 4.8,
+          "text": "No, wait..."
+        },
+        {
+          "t": 7.7,
+          "text": "That's a flag."
+        },
+        {
+          "t": 10.3,
+          "text": "Cute."
+        }
+      ]
+    }
   },
   {
     "id": "lenny",
@@ -308,6 +356,216 @@ export default [
           }
         ]
       }
-    ]
+    ],
+    "gun": {
+      "video": "media/lenny_gun.mp4",
+      "caption": "Okay okay okay, hands are up, hands are way up, look, both of them, take the box, take the boat, take my cousin's boat, he's got a better boat, I can call him right now-",
+      "cues": [
+        {
+          "t": 0.57,
+          "text": "Okay okay okay, hands are up, hands are way"
+        },
+        {
+          "t": 2.77,
+          "text": "up, look, both of them, take the box,"
+        },
+        {
+          "t": 4.81,
+          "text": "take the boat, take my cousin's boat,"
+        },
+        {
+          "t": 6.65,
+          "text": "he's got a better boat, I can call him right now-"
+        }
+      ]
+    }
+  },
+  {
+    "id": "otis",
+    "name": "Otis",
+    "role": "the shopkeeper",
+    "scene": "store",
+    "eyes": "steady",
+    "poster": "media/otis.png",
+    "greet": {
+      "video": "media/otis_greet.mp4",
+      "caption": "You buying, or you browsing? You know browsing is free for one minute, right? And you know what it turns into after that? You want to guess?",
+      "cues": [
+        {
+          "t": 0.7,
+          "text": "You buying, or you browsing?"
+        },
+        {
+          "t": 3.46,
+          "text": "You know browsing is free"
+        },
+        {
+          "t": 4.6,
+          "text": "for one minute, right?"
+        },
+        {
+          "t": 6.2,
+          "text": "And you know what it turns into after that?"
+        },
+        {
+          "t": 8.7,
+          "text": "You want to guess?"
+        }
+      ]
+    },
+    "replies": [
+      {
+        "label": "Got anything loud?",
+        "video": "media/otis_a.mp4",
+        "caption": "Loud? You want loud? Did Marisol send you in here asking for loud? You see the thing on the counter with the little flag in it? Does five dollars sound loud enough to you?",
+        "cues": [
+          {
+            "t": 0.59,
+            "text": "Loud? You want loud?"
+          },
+          {
+            "t": 3.11,
+            "text": "Did Marisol send you in here asking for loud?"
+          },
+          {
+            "t": 6.39,
+            "text": "You see the thing on the counter"
+          },
+          {
+            "t": 7.59,
+            "text": "with the little flag in it?"
+          },
+          {
+            "t": 9.31,
+            "text": "Does five dollars sound loud enough to you?"
+          }
+        ]
+      },
+      {
+        "label": "Just looking.",
+        "video": "media/otis_b.mp4",
+        "caption": "Just looking? At what, the gum? You think I keep the good stuff next to the gum? Why don't you look at the counter, and why don't you bring five dollars when you do?",
+        "cues": [
+          {
+            "t": 0.81,
+            "text": "Just looking?"
+          },
+          {
+            "t": 1.55,
+            "text": "At what, the gum?"
+          },
+          {
+            "t": 3.49,
+            "text": "You think I keep the good"
+          },
+          {
+            "t": 4.95,
+            "text": "stuff next to the gum?"
+          },
+          {
+            "t": 6.99,
+            "text": "Why don't you look at the counter, and why"
+          },
+          {
+            "t": 8.83,
+            "text": "don't you bring five dollars when you do?"
+          }
+        ]
+      }
+    ],
+    "after": [
+      {
+        "video": "media/otis_after.mp4",
+        "caption": "You still here? Did I not sell you a thing already? Do I look like a man who does refunds?",
+        "cues": [
+          {
+            "t": 0.7,
+            "text": "You still here?"
+          },
+          {
+            "t": 1.62,
+            "text": "Did I not sell you a thing already?"
+          },
+          {
+            "t": 4.52,
+            "text": "Do I look like a man who does refunds?"
+          }
+        ]
+      }
+    ],
+    "gun": {
+      "video": "media/otis_gun.mp4",
+      "caption": "Is that mine? Did I sell you that? Then what exactly did you think was going to come out of it?",
+      "cues": [
+        {
+          "t": 0.6,
+          "text": "Is that mine?"
+        },
+        {
+          "t": 1.4,
+          "text": "Did I sell you that?"
+        },
+        {
+          "t": 3.6,
+          "text": "Then what exactly did you think"
+        },
+        {
+          "t": 5.25,
+          "text": "was going to come out of it?"
+        }
+      ]
+    }
+  },
+  {
+    "id": "officer",
+    "name": "Officer",
+    "role": "the law",
+    "scene": "busted",
+    "eyes": "lazy",
+    "poster": "media/officer.png",
+    "greet": {
+      "video": "media/officer_greet.mp4",
+      "caption": "Name. Unknown. Vehicle. Borrowed. Weapon. One flag. Item confiscated. Suspect released. On account of the paperwork.",
+      "cues": [
+        {
+          "t": 0.6,
+          "text": "Name."
+        },
+        {
+          "t": 1.1,
+          "text": "Unknown."
+        },
+        {
+          "t": 3.9,
+          "text": "Vehicle."
+        },
+        {
+          "t": 4.55,
+          "text": "Borrowed."
+        },
+        {
+          "t": 6.75,
+          "text": "Weapon."
+        },
+        {
+          "t": 7.75,
+          "text": "One flag."
+        },
+        {
+          "t": 10.93,
+          "text": "Item confiscated."
+        },
+        {
+          "t": 13.39,
+          "text": "Suspect released."
+        },
+        {
+          "t": 15.71,
+          "text": "On account of the paperwork."
+        }
+      ]
+    },
+    "replies": [],
+    "after": []
   }
 ];
