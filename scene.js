@@ -250,7 +250,7 @@ const wavePts = (hh, lift = 0) => { const top = []; for (let k = 0; k < WAVE_N; 
 const foamPts = (hh) => { const p = [[-WAVE_W / 2, 0], [WAVE_W / 2, 0], [WAVE_W / 2, 0.16 * hh]]; for (let k = WAVE_N - 1; k >= 0; k--) { const x0 = -WAVE_W / 2 + k * WAVE_W / WAVE_N, sw = WAVE_W / WAVE_N; p.push([x0 + 0.99 * sw, 0.2 * hh], ...foam(x0, sw, hh).slice().reverse().map(([x, y]) => [x, y]), [x0 + 0.4 * sw, 0.2 * hh]); } p.push([-WAVE_W / 2, 0.16 * hh]); return p; };
 
 const waves = [], movers = [], letters = [], boats = [];
-let heroDoll = null, heroHandle = null, conv = null, boxMesh = null, foamLine = null, marisolH = null;
+const CARS = []; let heroDoll = null, heroHandle = null, conv = null, boxMesh = null, foamLine = null, marisolH = null;
 function build() {
   const stamp = (kind, n, cross) => Array.from({ length: n }, () => { const [pts, paint] = K[kind](); return { pts, m: H.printed(pts, paint, { cross: true, res: 0.9 }), cross }; });
   const ST = { palm: stamp('palm', 5, true), parasol: stamp('parasol', 4, true), flamingo: stamp('flamingo', 3), bench: stamp('bench', 1), lamp: stamp('lamp', 1, true), rail: stamp('rail', 1), hut: stamp('hut', 5), boat: stamp('boat', 4), gull: stamp('gull', 1) };
@@ -280,8 +280,8 @@ function build() {
   popup(...K.billboard(), { x: 178, z: roadZ(178) - 9.5, yaw: 0, level: true }); popup(...K.billboard(), { x: 262, z: roadZ(262) - 9.5, yaw: 0.1, level: true });
 
   const parked = [[-16, C.coral, false], [30, C.cream, true], [84, C.lilac, false], [-52, C.orange, true], [-88, C.pink, false]];
-  parked.forEach(([x, col, top], i) => { const z = roadZ(x) + 4.0; popup(null, null, { node: car(col, 600 + i * 40, top), height: 2, x, z, level: true }); walk.wall(x - 3.6, z - 1.5, x + 3.6, z - 1.5, { r: 1.7, name: 'car' }); });
-  { const z = roadZ(BEA_X + 2.6) + 4.0, node = car(C.teal, 900); const h = popup(null, null, { node, height: 2, x: BEA_X + 2.6, z, level: true }); conv = { h, node, x: BEA_X + 2.6, z, th: 0, v: 0, steer: 0, on: false, t: 0 }; }
+  parked.forEach(([x, col, top], i) => { const z = roadZ(x) + 4.0, node = car(col, 600 + i * 40, top), h = popup(null, null, { node, height: 2, x, z, level: true }); walk.wall(x - 3.6, z - 1.5, x + 3.6, z - 1.5, { r: 1.7, name: 'car' }); if (!top) CARS.push({ h, node, x, z, x0: x, z0: z, th: 0, v: 0, steer: 0, on: false, t: 0, walk, solid: walk.solids[walk.solids.length - 1] }); });
+  { const z = roadZ(BEA_X + 2.6) + 4.0, node = car(C.teal, 900); const h = popup(null, null, { node, height: 2, x: BEA_X + 2.6, z, level: true }); conv = { h, node, x: BEA_X + 2.6, z, x0: BEA_X + 2.6, z0: z, th: 0, v: 0, steer: 0, on: false, t: 0 }; CARS.push(conv); }
   for (const [x0, col, i] of [[60, C.turq, 0], [118, C.gold, 1], [200, C.coral, 2], [300, C.lilac, 3]]) { const node = car(col, 1000 + i * 40, i % 2 === 1); node.rotation.y = Math.PI; H.scene.add(node); movers.push({ node, x0, x: x0, road: i > 1 }); }
 
   const bodyM = [0, 1].map(() => H.printed(wavePts(2.6), (P) => { P.gradient(C.seaLight, C.sea, 0); P.felt(0.5); P.marks('wave', { color: C.foam, alpha: 0.5, size: 0.2, units: true, region: { ...P.box, y1: 1.2 } }); P.innerShade(C.seaDeep, { alpha: 0.4, blurPx: 10 }); }, { cross: true }));
@@ -404,7 +404,7 @@ const route = []; for (let x = 6; x < SPOT.bea.spot[0] - 3; x += 7) route.push([
 const KEYS = new Set(), carC = () => [conv.x + Math.sin(conv.th) * 1.5, conv.z - Math.cos(conv.th) * 1.5];
 const heroNearCar = (r) => { const p = window.__papercraft.heroPos, [cx, cz] = carC(); return Math.hypot(p.x - cx, p.z - cz) < r; };
 const drive = {
-  enter() { if (conv.on || INTRO.on) return false; talk.close(); conv.on = true; conv.t = 0; conv.v = 0; SFX.thump(); SFX.setIdle(true); KEYS.clear(); return true; },
+  enter() { if (conv.on || INTRO.on) return false; talk.close(); if (conv.solid) { const i = conv.walk.solids.indexOf(conv.solid); if (i >= 0) conv.walk.solids.splice(i, 1); } conv.on = true; conv.t = 0; conv.v = 0; SFX.thump(); SFX.setIdle(true); KEYS.clear(); return true; },
   exit() { if (!conv.on || Math.abs(conv.v) > 2.2) return false; const hook = window.__papercraft, [cx, cz] = carC(); conv.on = false; conv.v = 0; SFX.setIdle(false); SFX.thump(); for (const dz of [3.2, -3.4, 4.4]) if (hook.place(cx - 0.6, cz + dz) != null) break; heroHandle.group.position.y = 0.02; return true; },
 };
 const DEMO_Q = new URLSearchParams(location.search).has('demo');
@@ -428,7 +428,7 @@ if (!flags.TEST) {
   let waveT = 0, gullT = 30, dw = 0; const wrote = new V3(NaN, 0, 0), base = new V3(), dPos = new V3(), dLook = new V3(), lk = new V3();
   cam.extra = (c, post) => { if (dw <= 0) return; const e = s01(dw); if (!c.position.equals(wrote)) base.copy(c.position); c.position.lerpVectors(base, dPos, e); lk.copy(H.target).lerp(dLook, e); c.lookAt(lk); c.updateMatrixWorld(); wrote.copy(c.position); post.focus.lerp(dLook, e); };
   const resetIntro = () => { INTRO.on = true; INTRO.t = 0; INTRO.stage = 0; INTRO.gulls = 0; waveT = 0; marker.h.reset(0); for (const L of letters) { L.h.reset(0); L.h.group.visible = false; L.s = 0; } for (const m of letters.silhouettes) m.visible = true; marisolH.reset(0); marisolH.group.visible = false; marisolH.up = false;
-    conv.on = false; conv.v = 0; conv.th = 0; conv.x = BEA_X + 2.6; conv.z = roadZ(BEA_X + 2.6) + 4.0; boxState = 0; if (boxMesh.parent !== decks.pier) decks.pier.add(boxMesh); boxMesh.position.set(...boxMesh.userData.home); boxMesh.rotation.set(0, 0, 0); for (const m of movers) m.x = m.x0; };
+    for (const c of CARS) { c.on = false; c.v = 0; c.th = 0; c.steer = 0; c.x = c.x0; c.z = c.z0; c.h.x = c.x; c.h.group.position.set(c.x, c.h.group.position.y, c.z); c.h.group.rotation.y = 0; if (c.solid && !c.walk.solids.includes(c.solid)) c.walk.solids.push(c.solid); } boxState = 0; if (boxMesh.parent !== decks.pier) decks.pier.add(boxMesh); boxMesh.position.set(...boxMesh.userData.home); boxMesh.rotation.set(0, 0, 0); for (const m of movers) m.x = m.x0; };
   H.onRestart(resetIntro);
   let first = true;
   H.onStep((t, dt) => {
@@ -448,6 +448,7 @@ if (!flags.TEST) {
       m.node.position.set(x + 3.7, 0.03, roadZ(x) - 4.0); m.node.rotation.y = Math.PI - Math.atan2(roadZ(x - 1) - roadZ(x + 1), 2) * -1; for (const w of m.node.userData.car.wheels) w.rotation.z = x * 1.5;
       if (m.road && conv.on) { const [cx, cz] = carC(), ddx = cx - x, ddz = cz - (roadZ(x) - 2.5), dd = Math.hypot(ddx, ddz); if (dd < 4.8) { conv.z += (4.8 - dd) * 0.25 * (ddz >= 0 ? 1 : -1); conv.v *= 0.97; } }
     }
+    if (!conv.on) { const p = hook.heroPos; let best = Infinity; for (const c of CARS) { const d = Math.hypot(c.x - p.x, c.z - p.z); if (d < best) { best = d; conv = c; } } }
     { const canIn = !conv.on && !INTRO.on && heroNearCar(10), canOut = conv.on && Math.abs(conv.v) < 2.2 && conv.t > 1; carCue.visible = canIn || canOut;
       if (carCue.visible) { const [cx, cz] = carC(); carCue.position.set(cx + 0.4, 3.5 + (canOut ? 2.6 : 0) + 0.22 * Math.sin(t * 3.2), cz + 1.7); carCue.rotation.set(0, 0, canOut ? Math.PI : 0.06 * Math.sin(t * 2.1)); if (canOut) carCue.position.y += 2.4; } }
 
@@ -498,5 +499,5 @@ if (!flags.TEST) {
     if (INTRO.stage === 2 && it < T.steer + 0.2) hook.steer(people[0].at[0] - hook.heroPos.x, people[0].at[1] - 2.6 - hook.heroPos.z); else if (INTRO.stage === 2) { hook.steer(null); INTRO.stage = 3; }
     if (it >= T.end) { INTRO.on = false; cam.weight = 0; hook.steer(null); talk.setW(1); }
   });
-  window.__world = { sfx: SFX, intro: INTRO, T, skip, drive, conv, laneCheck: () => laneCheck(LANE, SOLIDS, 1.6), settleCheck: fold.settleCheck, revealAll: fold.revealAll, risen: fold.risen, total: fold.total, box: () => boxState, endIntro() { INTRO.t = Math.max(INTRO.t, T.end - 0.02); if (INTRO.stage < 2) { marisolH.group.visible = true; marisolH.reset(1); marisolH.up = true; INTRO.stage = 3; talk.open(people[0]); } } };
+  window.__world = { sfx: SFX, intro: INTRO, T, skip, drive, get conv() { return conv; }, cars: CARS, laneCheck: () => laneCheck(LANE, SOLIDS, 1.6), settleCheck: fold.settleCheck, revealAll: fold.revealAll, risen: fold.risen, total: fold.total, box: () => boxState, endIntro() { INTRO.t = Math.max(INTRO.t, T.end - 0.02); if (INTRO.stage < 2) { marisolH.group.visible = true; marisolH.reset(1); marisolH.up = true; INTRO.stage = 3; talk.open(people[0]); } } };
 }
