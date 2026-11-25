@@ -4,7 +4,7 @@ export function createSound({ seed = 7, birds = true } = {}) {
   const sfx = new PaperSound({ volume: 0.5, spacing: 0.42, spacingJitter: 0.15, groupWindow: 0.35 });
   const stats = { steps: 0, flaps: 0, flapsAsked: 0, chirps: 0, gusts: 0, duck: 1, muted: false };
   let hissT = 0, idleCar = false, eng = null, rev = 0;
-  const music = { buf: null, gain: null, level: 0, want: 0, nextAt: 0, loading: false, on: false };
+  const tracks = {};
   let amb = null, analyser = null, duckTo = 1, nextChirp = 6, nextGust = 9, foot = 0, lastStepAt = 0, rs = seed >>> 0;
   const rnd = () => { rs = (Math.imul(rs, 1664525) + 1013904223) >>> 0; return rs / 4294967296; };
   const BASE = () => 0.855 * 2 * sfx.volume;
@@ -15,23 +15,23 @@ export function createSound({ seed = 7, birds = true } = {}) {
     amb = ctx.createGain(); amb.gain.value = 1;
     analyser = ctx.createAnalyser(); analyser.fftSize = 2048;
     amb.connect(sfx.chain.master); sfx.chain.master.connect(analyser);
-    music.gain = ctx.createGain(); music.gain.gain.value = 0; music.gain.connect(sfx.chain.master);
+    for (const m of Object.values(tracks)) { m.gain = ctx.createGain(); m.gain.gain.value = 0; m.gain.connect(sfx.chain.master); }
   }
-  function loadMusic(url) {
-    if (music.loading) return;
-    music.loading = true; music.raw = fetch(url).then((r) => r.arrayBuffer()).catch(() => null);
+  function loadMusic(name, url) {
+    if (tracks[name]) return;
+    tracks[name] = { buf: null, gain: null, level: 0, want: 0, nextAt: 0, decoding: false, raw: fetch(url).then((r) => r.arrayBuffer()).catch(() => null) };
   }
-  function playMusic(dt) {
-    const ctx = sfx.ctx; if (!ctx || !music.gain || ctx.state !== 'running') return;
-    if (!music.buf) { if (music.raw && !music.decoding) { music.decoding = true; music.raw.then((a) => a && ctx.decodeAudioData(a)).then((b) => { if (b) music.buf = b; }).catch(() => {}); } return; }
+  function playMusic(dt, m) {
+    const ctx = sfx.ctx; if (!ctx || !m.gain || ctx.state !== 'running') return;
+    if (!m.buf) { if (!m.decoding) { m.decoding = true; m.raw.then((a) => a && ctx.decodeAudioData(a)).then((b) => { if (b) m.buf = b; }).catch(() => {}); } return; }
     const X = 2.5, now = ctx.currentTime;
-    if (music.on && now > music.nextAt - 0.3) {
-      const t = Math.max(now + 0.05, music.nextAt), src = ctx.createBufferSource(), g = ctx.createGain(), first = music.nextAt === 0, len = music.buf.duration;
-      src.buffer = music.buf; g.gain.setValueAtTime(first ? 1 : 0, t); if (!first) g.gain.linearRampToValueAtTime(1, t + X);
+    if ((m.want > 0 || m.nextAt > 0) && now > m.nextAt - 0.3) {
+      const t = Math.max(now + 0.05, m.nextAt), src = ctx.createBufferSource(), g = ctx.createGain(), first = m.nextAt === 0, len = m.buf.duration;
+      src.buffer = m.buf; g.gain.setValueAtTime(first ? 1 : 0, t); if (!first) g.gain.linearRampToValueAtTime(1, t + X);
       g.gain.setValueAtTime(1, t + len - X); g.gain.linearRampToValueAtTime(0, t + len);
-      src.connect(g); g.connect(music.gain); src.start(t); music.nextAt = t + len - X;
+      src.connect(g); g.connect(m.gain); src.start(t); m.nextAt = t + len - X;
     }
-    music.level += (music.want - music.level) * (1 - Math.exp(-dt / 0.9)); music.gain.gain.value = music.level;
+    m.level += (m.want - m.level) * (1 - Math.exp(-dt / 0.7)); m.gain.gain.value = m.level;
   }
   function engine(on) {
     const ctx = sfx.ctx; if (!ctx || !amb) return;
@@ -126,7 +126,7 @@ export function createSound({ seed = 7, birds = true } = {}) {
       }
     },
     setIdle(on) { idleCar = on; engine(on); },
-    loadMusic, music(dt, want) { music.on = true; music.want = want; playMusic(dt); }, musicState: () => ({ loaded: !!music.buf, level: +music.level.toFixed(3), nextAt: +music.nextAt.toFixed(1) }),
+    loadMusic, music(dt, levels) { for (const [name, m] of Object.entries(tracks)) { m.want = levels[name] || 0; playMusic(dt, m); } }, musicState: () => Object.fromEntries(Object.entries(tracks).map(([k, m]) => [k, { loaded: !!m.buf, level: +m.level.toFixed(3) }])),
     thump() { stats.thumps = (stats.thumps || 0) + 1; sfx.flap({ size: 1, up: false }); },
     toggleMute() { stats.muted = !stats.muted; return stats.muted; },
     level() {

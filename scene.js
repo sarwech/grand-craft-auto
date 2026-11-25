@@ -434,7 +434,7 @@ if (!flags.TEST) {
   { const wm = document.getElementById('wordmark'); if (wm) drawWordmark(wm, H.paper.sheet); }
   pageEdges(H, { x0: PAGE.x0, x1: PAGE.x1, paperMaterial });
   for (const sgn of SIGNS) sgn.userData.setGlow?.(2.3);
-  const hook = window.__papercraft; SFX.loadMusic('media/radio.mp3');
+  const hook = window.__papercraft; SFX.loadMusic('street', 'media/street.mp3'); SFX.loadMusic('radio', 'media/radio.mp3');
   addEventListener('keydown', (e) => KEYS.add(e.code)); addEventListener('keyup', (e) => KEYS.delete(e.code)); addEventListener('blur', () => KEYS.clear());
   const fold = foldOut(H, { sfx: SFX, reach: 1, dist: (h, p) => { const d = h.x - p.x, ahead = conv.on ? 64 : 22; return h === marisolH ? 9 : d > -26 && d < ahead ? 0 : 9; }, startUp: (h) => h.x < 42 && h !== marisolH, hold: () => INTRO.on });
   let waveT = 0, gullT = 30, dw = 0; const wrote = new V3(NaN, 0, 0), base = new V3(), dPos = new V3(), dLook = new V3(), lk = new V3();
@@ -447,7 +447,7 @@ if (!flags.TEST) {
     if (first) { first = false; resetIntro(); }
     for (const L of letters) L.h.update(dt);
     marker.h.update(dt); if (marker.h.open === 0 && marker.h.p < 0.03) marker.h.group.visible = false;
-    SFX.update(dt, talk.speaking()); SFX.music(dt, INTRO.on ? 0.5 : conv.on ? 0.55 : 0.2);
+    SFX.update(dt, talk.speaking()); SFX.music(dt, conv.on ? { radio: conv.t > 0.9 ? 0.36 : 0 } : { street: INTRO.on ? 0.8 : 0.3 });
     const eye = INTRO.on ? (cam.at(INTRO.t), cam.pos) : H.camera.position;
     heroDoll.userData.faceCamera(heroHandle.group.rotation.y, Math.atan2(eye.x - hook.heroPos.x, eye.z - hook.heroPos.z));
     for (const { h, r, x0, z0 } of waves) { if (!h.up) continue; const ph = t * 1.05 - r * 1.05 + x0 * 0.012, k = Math.sin(ph); h.sway = -0.34 * k - 0.1; h.group.position.x = x0 + 1.8 * Math.sin(ph * 0.5 + r * 0.7); h.group.position.z = z0 - 1.1 * k; }
